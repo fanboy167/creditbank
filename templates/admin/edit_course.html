@@ -1,0 +1,81 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}แก้ไขหลักสูตร{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">แก้ไขหลักสูตร</h2>
+
+<form method="POST" enctype="multipart/form-data" class="bg-light shadow-sm p-4 rounded" style="max-width: 700px;">
+  
+  <div class="mb-3">
+    <label for="course_image" class="form-label d-block">รูปภาพหลักสูตร (ถ้าต้องการเปลี่ยน)</label>
+    <input class="form-control" type="file" id="course_image" name="course_image" accept="image/*" onchange="previewImage(event)">
+    <div style="max-width: 300px; margin-top: 10px;">
+      {% if course.image %}
+      <img id="imagePreview" src="{{ url_for('static', filename='uploads/courses/' ~ course.image) }}" alt="รูปภาพหลักสูตร" style="max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+      {% else %}
+      <img id="imagePreview" src="{{ url_for('static', filename='img/default-course.png') }}" alt="ไม่มีรูปภาพ" style="max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="course_name" class="form-label">ชื่อหลักสูตร</label>
+    <input type="text" class="form-control" id="course_name" name="course_name" value="{{ course.course_name }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="instructor" class="form-label">ผู้สอน</label>
+    <select class="form-select" id="instructor" name="instructor_id" required>
+      <option value="" disabled>-- เลือกผู้สอน --</option>
+      {% for instructor in instructors %}
+      <option value="{{ instructor.id }}" {% if instructor.id == course.instructor_id %}selected{% endif %}>
+        {{ instructor.first_name }} {{ instructor.last_name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="category" class="form-label">หมวดหมู่หลักสูตร</label>
+    <select class="form-select" id="category" name="category_id" required>
+      <option value="" disabled>-- เลือกหมวดหมู่ --</option>
+      {% for category in categories %}
+      <option value="{{ category.id }}" {% if category.id == course.category_id %}selected{% endif %}>
+        {{ category.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">คำอธิบายหลักสูตร</label>
+    <textarea class="form-control" id="description" name="description" rows="4">{{ course.description }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="status" class="form-label">สถานะหลักสูตร</label>
+    <select class="form-select" id="status" name="status" required>
+      <option value="active" {% if course.status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if course.status == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+  <a href="{{ url_for('course_list') }}" class="btn btn-secondary ms-2">ยกเลิก</a>
+</form>
+
+<script>
+  function previewImage(event) {
+    const input = event.target;
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+      }
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>
+{% endblock %}

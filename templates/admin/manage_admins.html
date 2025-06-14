@@ -1,0 +1,116 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}จัดการผู้ดูแลระบบ{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">เพิ่ม/ลบ ผู้ดูแลระบบ</h2>
+
+<!-- ฟอร์มเพิ่มแอดมิน -->
+<div class="card p-4 bg-light shadow-sm">
+  <form method="POST" action="{{ url_for('manage_admins') }}" enctype="multipart/form-data">
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">ชื่อ</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="first_name" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">นามสกุล</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="last_name" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">อีเมล</label>
+      <div class="col-sm-9">
+        <input type="email" class="form-control" name="email" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">ชื่อผู้ใช้</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="username" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">เบอร์โทรศัพท์</label>
+      <div class="col-sm-9">
+       <input type="tel" class="form-control" name="tel" pattern="[0-9]{10}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+  <label class="col-sm-3 col-form-label">เพศ</label>
+  <div class="col-sm-9">
+    <select name="gender" class="form-select" required>
+      <option value="">-- เลือกเพศ --</option>
+      <option value="male">ชาย</option>
+      <option value="female">หญิง</option>
+    </select>
+  </div>
+</div>
+
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">รหัสผ่าน</label>
+      <div class="col-sm-9">
+        <input type="password" class="form-control" name="password" required>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <label class="col-sm-3 col-form-label">รูปโปรไฟล์</label>
+      <div class="col-sm-9">
+        <input type="file" class="form-control" name="profile_image" accept="image/*">
+      </div>
+    </div>
+
+    <div class="text-end">
+      <button type="submit" class="btn btn-success">
+        <i class="fas fa-user-plus me-1"></i> เพิ่มผู้ดูแลระบบ
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- รายชื่อแอดมิน -->
+<hr>
+<h3 class="mt-4">รายชื่อผู้ดูแลระบบ</h3>
+<table class="table table-bordered bg-white shadow-sm">
+  <thead class="table-light">
+    <tr>
+      <th>ชื่อ</th>
+      <th>นามสกุล</th>
+      <th>อีเมล</th>
+      <th>เบอร์โทร</th>
+      <th>ชื่อผู้ใช้</th>
+      <th>จัดการ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for admin in admins %}
+    <tr>
+      <td>{{ admin.first_name }}</td>
+      <td>{{ admin.last_name }}</td>
+      <td>{{ admin.email }}</td>
+      <td>{{ admin.tel }}</td>
+      <td>{{ admin.username }}</td>
+      <td>
+  <a href="{{ url_for('edit_admin', admin_id=admin.id) }}" class="btn btn-sm btn-primary me-1">
+    <i class="fas fa-edit"></i> แก้ไข
+  </a>
+  <form action="{{ url_for('delete_admin', admin_id=admin.id) }}" method="POST" style="display:inline;">
+    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('ลบผู้ดูแลระบบนี้?')">
+      <i class="fas fa-trash-alt"></i> ลบ
+    </button>
+  </form>
+</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

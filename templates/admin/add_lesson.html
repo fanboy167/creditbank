@@ -1,0 +1,37 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}เพิ่มบทเรียน{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">เพิ่มบทเรียนใหม่</h2>
+
+<form method="POST" action="{{ url_for('add_lesson') }}">
+  <div class="mb-3">
+    <label for="lesson_name" class="form-label">ชื่อบทเรียน</label>
+    <input type="text" class="form-control" id="lesson_name" name="lesson_name" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="course_id" class="form-label">หลักสูตร</label>
+    <select class="form-select" id="course_id" name="course_id" required>
+      <option value="">-- เลือกหลักสูตร --</option>
+      {% for course in courses %}
+      <option value="{{ course.id }}">{{ course.title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="instructor_id" class="form-label">ผู้สอน</label>
+    <select class="form-select" id="instructor_id" name="instructor_id" required>
+      <option value="">-- เลือกผู้สอน --</option>
+      {% for instructor in instructors %}
+      <option value="{{ instructor.id }}">{{ instructor.first_name }} {{ instructor.last_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">บันทึก</button>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+{% endblock %}

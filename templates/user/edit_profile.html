@@ -1,0 +1,55 @@
+{% extends "user/user_layout.html" %}
+
+{% block title %}แก้ไขโปรไฟล์{% endblock %}
+
+{% block content %}
+<h2>แก้ไขโปรไฟล์</h2>
+
+<form method="POST" enctype="multipart/form-data" class="bg-light shadow-sm mb-4" style="padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 600px;">
+  <div class="mb-3">
+    <label for="first_name" class="form-label">ชื่อ</label>
+    <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="last_name" class="form-label">นามสกุล</label>
+    <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="email" class="form-label">อีเมล</label>
+    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="phone" class="form-label">เบอร์โทร</label>
+    <input type="text" class="form-control" id="phone" name="phone" value="{{ user.phone }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="profile_image" class="form-label d-block">รูปโปรไฟล์</label>
+    <input class="form-control mb-3" type="file" id="profile_image" name="profile_image" accept="image/*" onchange="previewImage(event)">
+    <div style="max-width: 200px;">
+      <img id="imagePreview" src="{{ url_for('static', filename='profile_images/' + (user.profile_image or 'default.png')) }}" alt="รูปโปรไฟล์ปัจจุบัน" style="max-width: 100%; height: auto; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+  <a href="{{ url_for('edit_profile') }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+
+<script>
+  function previewImage(event) {
+    const input = event.target;
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+      }
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>
+
+{% endblock %}

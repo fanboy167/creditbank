@@ -1,0 +1,82 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}แก้ไขผู้สอน{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">แก้ไขข้อมูลผู้สอน</h2>
+
+<div class="card p-4 bg-light shadow-sm">
+  <form method="POST" action="{{ url_for('edit_instructor', instructor_id=instructor.id) }}" enctype="multipart/form-data">
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">ชื่อ</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="first_name" value="{{ instructor.first_name }}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">นามสกุล</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="last_name" value="{{ instructor.last_name }}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">อีเมล</label>
+      <div class="col-sm-9">
+        <input type="email" class="form-control" name="email" value="{{ instructor.email }}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">ชื่อผู้ใช้</label>
+      <div class="col-sm-9">
+        <input type="text" class="form-control" name="username" value="{{ instructor.username }}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">เบอร์โทรศัพท์</label>
+      <div class="col-sm-9">
+        <input type="tel" class="form-control" name="tel" value="{{ instructor.tel }}" pattern="[0-9]{10}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">เพศ</label>
+      <div class="col-sm-9">
+        <select name="gender" class="form-select" required>
+          <option value="">-- เลือกเพศ --</option>
+          <option value="male" {% if instructor.gender == 'male' %}selected{% endif %}>ชาย</option>
+          <option value="female" {% if instructor.gender == 'female' %}selected{% endif %}>หญิง</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- เพิ่มช่องรหัสผ่าน -->
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">รหัสผ่าน (ถ้าต้องการเปลี่ยน)</label>
+      <div class="col-sm-9">
+        <input type="password" class="form-control" name="password" placeholder="เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยนรหัสผ่าน">
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <label class="col-sm-3 col-form-label">รูปโปรไฟล์ (ถ้าเปลี่ยน)</label>
+      <div class="col-sm-9">
+        <input type="file" class="form-control" name="profile_image" accept="image/*">
+        {% if instructor.profile_image %}
+          <small>รูปปัจจุบัน: {{ instructor.profile_image }}</small>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="text-end">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save me-1"></i> บันทึกการแก้ไข
+      </button>
+      <a href="{{ url_for('manage_instructors') }}" class="btn btn-secondary ms-2">ยกเลิก</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

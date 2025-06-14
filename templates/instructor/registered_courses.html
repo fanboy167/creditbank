@@ -1,0 +1,63 @@
+{% extends "instructor/instructor_layout.html" %}
+
+{% block title %}รายงานข้อมูลการลงทะเบียนเรียน{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">รายงานข้อมูลการลงทะเบียนเรียน</h2>
+
+<style>
+  .dataTables_filter {
+    text-align: right !important;
+  }
+
+  .dataTables_filter label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+
+<div class="card p-4 bg-light shadow-sm">
+  <table id="registrationTable" class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>ชื่อผู้เรียน</th>
+        <th>ชื่อหลักสูตร</th>
+        <th>วันที่ลงทะเบียน</th>
+        <th>สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in registration_list %}
+      <tr>
+        <td>{{ r.student.first_name }} {{ r.student.last_name }}</td>
+        <td>{{ r.course.course_name }}</td>
+        <td>{{ r.registration_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ r.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- โหลด JS และ DataTables -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  $(document).ready(function () {
+    $('#registrationTable').DataTable({
+      paging: true,
+      lengthChange: true,
+      searching: true,
+      ordering: true,
+      info: true,
+      autoWidth: false,
+      responsive: true,
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}จัดการหลักสูตร{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">จัดการหลักสูตร</h2>
+
+<!-- ปุ่มเพิ่มหลักสูตร -->
+<div class="mb-3">
+  <a href="{{ url_for('add_course') }}" class="btn btn-success">
+    <i class="fas fa-plus-circle me-1"></i> เพิ่มหลักสูตร
+  </a>
+</div>
+
+<style>
+  .dataTables_filter {
+    text-align: right !important;
+  }
+
+  .dataTables_filter label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+
+<div class="card p-4 bg-light shadow-sm">
+  <table id="courseTable" class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>รูปภาพหลักสูตร</th>
+        <th>ชื่อหลักสูตร</th>
+        <th>หมวดหมู่</th>
+        <th>ชื่อผู้สอน</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>
+          {% if course.image %}
+          <img src="{{ url_for('static', filename='course_images/' ~ course.image) }}"
+               alt="รูปหลักสูตร" class="img-thumbnail" style="width: 80px; height: 60px; object-fit: cover;">
+          {% else %}
+          <img src="{{ url_for('static', filename='img/default-course.png') }}"
+               alt="ไม่มีรูป" class="img-thumbnail" style="width: 80px; height: 60px; object-fit: cover;">
+          {% endif %}
+        </td>
+        <td>{{ course.course_name }}</td>
+        <td>{{ course.category.name }}</td>
+        <td>{{ course.instructor.first_name }} {{ course.instructor.last_name }}</td>
+        <td class="d-flex gap-1 flex-wrap">
+          <!-- เพิ่มบทเรียน -->
+          <a href="{{ url_for('lesson', course_id=course.id) }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> บทเรียน
+          </a>
+          <!-- แก้ไขหลักสูตร -->
+          <a href="{{ url_for('edit_course', course_id=course.id) }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-edit"></i> แก้ไข
+          </a>
+          <!-- ลบหลักสูตร -->
+          <form action="{{ url_for('delete_course', course_id=course.id) }}" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ว่าต้องการลบหลักสูตรนี้?');" style="display: inline;">
+            <button type="submit" class="btn btn-danger btn-sm">
+              <i class="fas fa-trash-alt"></i> ลบ
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- JS & DataTables -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  $(document).ready(function () {
+    $('#courseTable').DataTable({
+      paging: true,
+      lengthChange: true,
+      searching: true,
+      ordering: true,
+      info: true,
+      autoWidth: false,
+      responsive: true,
+    });
+  });
+</script>
+{% endblock %}

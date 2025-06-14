@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block content %}
+{% include "component/header.html" %}
+
+<!-- Carousel Start -->
+<div class="container-fluid p-0 mb-5">
+
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for category, message in messages %}
+          <script type="text/javascript">
+            const Toast = Swal.mixin({
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 3000,
+              timerProgressBar: true,
+              didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer
+                toast.onmouseleave = Swal.resumeTimer
+              }
+            })
+            Toast.fire({
+              icon: '{{category}}',
+              title: '{{message}}'
+            })
+          </script>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+    <div class="owl-carousel header-carousel position-relative">
+        <!-- item 1 -->
+        <div class="position-relative">
+            <img class="img-fluid" src="{{ url_for('static', filename='img/home1.jpg') }}" alt="">
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center"
+                style="background: rgba(24, 29, 56, .7);">
+                <div class="container">
+                    <div class="row justify-content-start">
+                        <div class="col-sm-10 col-lg-8">
+                            <h5 class="text-primary text-uppercase mb-3 animated slideInDown">Best Online Courses</h5>
+                            <h1 class="display-3 text-white animated slideInDown">The Best Online Learning Platform</h1>
+                            <p class="fs-5 text-white mb-4 pb-2">Vero elitr justo clita lorem. Ipsum dolor at sed stet
+                                sit diam no. Kasd rebum ipsum et diam justo clita et kasd rebum sea sanctus eirmod
+                                elitr.</p>
+                            <a href="" class="btn btn-primary py-md-3 px-md-5 me-3 animated slideInLeft">Read More</a>
+                            <a href="" class="btn btn-light py-md-3 px-md-5 animated slideInRight">Join Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- item 2 -->
+        <div class="position-relative">
+            <img class="img-fluid" src="{{ url_for('static', filename='img/home2.jpg') }}" alt="">
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center"
+                style="background: rgba(24, 29, 56, .7);">
+                <div class="container">
+                    <div class="row justify-content-start">
+                        <div class="col-sm-10 col-lg-8">
+                            <h5 class="text-primary text-uppercase mb-3 animated slideInDown">Best Online Courses</h5>
+                            <h1 class="display-3 text-white animated slideInDown">Get Educated Online From Your Home</h1>
+                            <p class="fs-5 text-white mb-4 pb-2">Vero elitr justo clita lorem. Ipsum dolor at sed stet
+                                sit diam no. Kasd rebum ipsum et diam justo clita et kasd rebum sea sanctus eirmod
+                                elitr.</p>
+                            <a href="" class="btn btn-primary py-md-3 px-md-5 me-3 animated slideInLeft">Read More</a>
+                            <a href="" class="btn btn-light py-md-3 px-md-5 animated slideInRight">Join Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Carousel End -->
+
+{% include "component/footer.html" %}
+{% endblock %}
+
+{% block head_extra %}
+<script>
+$(document).ready(function(){
+    $(".owl-carousel.header-carousel").owlCarousel({
+    loop: true,
+    margin: 0,
+    nav: true,
+    dots: true,
+    items: 1,
+    autoplay: true,
+    autoplayTimeout: 5000,
+    autoplayHoverPause: true,
+    animateOut: 'fadeOut',
+    animateIn: 'fadeIn',
+    navText: [
+        '<i class="fas fa-chevron-left"></i>',  // ปุ่ม prev เป็นลูกศรซ้าย (FontAwesome)
+        '<i class="fas fa-chevron-right"></i>'  // ปุ่ม next เป็นลูกศรขวา
+    ]
+});
+});
+</script>
+{% endblock %}

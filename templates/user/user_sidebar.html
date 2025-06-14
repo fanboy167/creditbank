@@ -1,0 +1,23 @@
+<nav class="nav flex-column">
+
+  <!-- Dashboard -->
+  <a class="nav-link text-white" href="{{ url_for('user_dashboard') }}">
+    <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+  </a>
+
+  <!-- Divider -->
+  <hr class="bg-secondary my-2">
+
+  <a class="nav-link text-white" href="{{ url_for('edit_profile') }}">
+    <i class="fas fa-user-edit me-2"></i> แก้ไขโปรไฟล์
+  </a>
+
+  <!-- Divider -->
+  <hr class="bg-secondary my-2">
+
+  <!-- Logout -->
+  <a class="nav-link text-white" href="{{ url_for('logout') }}">
+    <i class="fas fa-sign-out-alt me-2"></i> Logout
+  </a>
+
+</nav>

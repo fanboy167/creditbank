@@ -1,0 +1,71 @@
+<nav class="nav flex-column">
+
+  <!-- Dashboard -->
+  <a class="nav-link text-white" href="{{ url_for('admin_dashboard') }}">
+    <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+  </a>
+  <!-- Divider -->
+  <hr class="bg-secondary my-2">
+  <!-- จัดการข้อมูล (เมนูย่อย) -->
+  <a class="nav-link text-white" data-bs-toggle="collapse" href="#manageData" role="button" aria-expanded="false" aria-controls="manageData">
+    <i class="fas fa-cogs me-2"></i> จัดการข้อมูล
+    <i class="fas fa-chevron-down float-end"></i>
+  </a>
+  <div class="collapse ms-4" id="manageData">
+    <a class="nav-link text-white-50" href="{{ url_for('manage_admins') }}">
+      <i class="fas fa-user-shield me-2"></i> ผู้ดูแลระบบ
+    </a>
+    <a class="nav-link text-white-50" href="{{ url_for('manage_instructors') }}">
+      <i class="fas fa-chalkboard-teacher me-2"></i> อาจารย์ผู้สอน
+    </a>
+    <a class="nav-link text-white-50" href="{{ url_for('manage_users') }}">
+      <i class="fas fa-users me-2"></i> ผู้ใช้
+    </a>
+  </div>
+  <!-- Divider -->
+  <hr class="bg-secondary my-2">
+  <!-- ดูข้อมูลการเข้าเรียนสอบ -->
+  <a class="nav-link text-white" data-bs-toggle="collapse" href="#attendanceData" role="button" aria-expanded="false" aria-controls="attendanceData">
+    <i class="fas fa-file-alt me-2"></i> ดูข้อมูลการเข้าเรียนสอบ
+    <i class="fas fa-chevron-down float-end"></i>
+  </a>
+  <div class="collapse ms-4" id="attendanceData">
+    <a class="nav-link text-white-50" href="{{ url_for('attendance_students') }}">
+      <i class="fas fa-user-graduate me-2"></i> รายชื่อผู้เข้าเรียน
+    </a>
+    <a class="nav-link text-white-50" href="{{ url_for('attendance_exams') }}">
+      <i class="fas fa-clipboard-list me-2"></i> รายชื่อผู้เข้าสอบ
+    </a>
+  </div>
+<!-- Divider -->
+  <hr class="bg-secondary my-2">
+ <!-- เมนูหลัก พร้อม submenu -->
+<a class="nav-link text-white" data-bs-toggle="collapse" href="#collapseCourse" role="button" aria-expanded="false" aria-controls="collapseCourse">
+  <i class="fas fa-book me-2"></i> การสร้างหลักสูตรเรียน
+  <i class="fas fa-chevron-down float-end"></i>
+</a>
+
+<div class="collapse ps-3" id="collapseCourse">
+  <a class="nav-link text-white" href="{{ url_for('category_list') }}">
+    <i class="fas fa-folder-open me-2"></i> หมวดหมู่
+  </a>
+  <a class="nav-link text-white" href="{{ url_for('course_list') }}">
+    <i class="fas fa-list-alt me-2"></i> หลักสูตร
+  </a>
+</div>
+<!-- Divider -->
+  <hr class="bg-secondary my-2">
+<a class="nav-link text-white" href="{{ url_for('edit_profile') }}">
+  <i class="fas fa-user-edit me-2"></i> แก้ไขโปรไฟล์
+</a>
+<!-- Divider -->
+  <hr class="bg-secondary my-2">
+
+<!-- Logout -->
+  <a class="nav-link text-white" href="{{ url_for('logout') }}">
+    <i class="fas fa-sign-out-alt me-2"></i> Logout
+  </a>
+</nav>
+
+
+

@@ -1,0 +1,84 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}การจัดการแบบทดสอบ{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">การจัดการแบบทดสอบ</h2>
+
+<!-- ปุ่มเพิ่มแบบทดสอบ -->
+<div class="mb-3">
+  <a href="{{ url_for('add_quiz', lesson_id=lesson_id) }}" class="btn btn-success">
+    <i class="fas fa-plus-circle me-1"></i> เพิ่มแบบทดสอบ
+  </a>
+</div>
+
+<style>
+  .dataTables_filter {
+    text-align: right !important;
+  }
+  .dataTables_filter label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+
+<div class="card p-4 bg-light shadow-sm">
+  <table id="quizTable" class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>ชื่อแบบทดสอบ</th>
+        <th>ชื่อบทเรียน</th>
+        <th>จำนวนข้อสอบ</th>
+        <th>เกณฑ์ผ่าน</th>
+        <th>วันที่สร้าง</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for quiz in quizzes %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ quiz.quiz_name }}</td>  {# ชื่อแบบทดสอบ #}
+        <td>{{ quiz.lesson_name }}</td> {# ชื่อบทเรียน #}
+        <td>{{ quiz.question_count }}</td>
+        <td>{{ quiz.passing_percentage }}%</td> {# เกณฑ์ผ่าน #}
+        <td>{{ quiz.quiz_date.strftime('%Y-%m-%d') if quiz.quiz_date else '-' }}</td> {# วันที่สร้าง #}
+        <td>
+          <a href="{{ url_for('quiz_questions', quiz_id=quiz.quiz_id) }}" class="btn btn-info btn-sm" title="ดูข้อสอบ">
+            <i class="fas fa-list"></i> ข้อสอบ
+          </a>
+          <a href="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-edit"></i> แก้ไข
+          </a>
+          <a href="{{ url_for('delete_quiz', quiz_id=quiz.quiz_id) }}" class="btn btn-danger btn-sm"
+             onclick="return confirm('ยืนยันการลบแบบทดสอบนี้?');">
+            <i class="fas fa-trash"></i> ลบ
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+  $(document).ready(function () {
+    $('#quizTable').DataTable({
+      paging: true,
+      lengthChange: true,
+      searching: true,
+      ordering: true,
+      info: true,
+      autoWidth: false,
+      responsive: true,
+    });
+  });
+</script>
+{% endblock %}

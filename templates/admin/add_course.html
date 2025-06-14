@@ -1,0 +1,83 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}เพิ่มหลักสูตร{% endblock %}
+
+{% block content %}
+<h2>เพิ่มหลักสูตร</h2>
+
+<form method="POST" enctype="multipart/form-data" class="bg-light shadow-sm mb-4" style="padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+  <div class="mb-3">
+    <label for="course_image" class="form-label d-block">รูปภาพหลักสูตร</label>
+    <input class="form-control mb-3" type="file" id="course_image" name="course_image" accept="image/*" onchange="previewImage(event)">
+    <div style="max-width: 300px;">
+      <img id="imagePreview" src="#" alt="ตัวอย่างภาพหลักสูตร" style="display: none; max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="course_name" class="form-label">ชื่อหลักสูตร</label>
+    <input type="text" class="form-control" id="course_name" name="course_name" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="instructor" class="form-label">ผู้สอน</label>
+    <select class="form-select" id="instructor" name="instructor_id" required>
+      <option value="" selected disabled>-- เลือกผู้สอน --</option>
+      {% for instructor in instructors %}
+      <option value="{{ instructor.id }}">{{ instructor.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="category" class="form-label">หมวดหมู่หลักสูตร</label>
+    <select class="form-select" id="category" name="category_id" required>
+      <option value="" selected disabled>-- เลือกหมวดหมู่ --</option>
+      {% for category in categories %}
+      <option value="{{ category.id }}">{{ category.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">คำอธิบายรายวิชา</label>
+    <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="intro_video" class="form-label">วิดีโอแนะนำหลักสูตร</label>
+    <input class="form-control" type="file" id="featured_video" name="featured_video" accept="video/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="status" class="form-label">สถานะหลักสูตร</label>
+    <select class="form-select" id="status" name="status" required>
+      <option value="" selected disabled>-- เลือกสถานะหลักสูตร --</option>
+      <option value="publish">เปิดสอน</option>
+      <option value="draft">ปิดสอน</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-success">บันทึกหลักสูตร</button>
+  <a href="{{ url_for('course_list') }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+
+<script>
+  function previewImage(event) {
+    const input = event.target;
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      }
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      preview.src = '#';
+      preview.style.display = 'none';
+    }
+  }
+</script>
+
+{% endblock %}

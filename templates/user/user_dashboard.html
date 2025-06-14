@@ -1,0 +1,57 @@
+{% extends 'user/user_layout.html' %}
+
+{% block title %}แดชบอร์ดผู้ใช้งาน{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">แดชบอร์ดผู้ใช้งาน</h1>
+
+<div class="row row-cols-1 row-cols-md-3 g-4">
+
+  <!-- ผู้ใช้งานทั้งหมด -->
+  <div class="col">
+    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
+      <div class="card-body">
+        <i class="fas fa-users fa-3x text-primary mb-3"></i>
+        <h5 class="card-title">ผู้ใช้งานทั้งหมด</h5>
+        <p class="display-6 fw-bold mb-0">{{ user_count }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- รายวิชาทั้งหมด -->
+  <div class="col">
+    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
+      <div class="card-body">
+        <i class="fas fa-book fa-3x text-success mb-3"></i>
+        <h5 class="card-title">รายวิชาทั้งหมด</h5>
+        <p class="display-6 fw-bold mb-0">{{ course_count }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ล็อกอินล่าสุด -->
+  <div class="col">
+    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
+      <div class="card-body">
+        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+        <h5 class="card-title">ล็อกอินล่าสุด</h5>
+        {% if latest_users %}
+          <ul class="list-unstyled small mb-0">
+            {% for user in latest_users %}
+              <li>
+                {{ user.first_name }} {{ user.last_name }}<br>
+                <span class="text-muted">{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+              </li>
+              {% if not loop.last %}<hr class="my-2">{% endif %}
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted">ไม่มีข้อมูล</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

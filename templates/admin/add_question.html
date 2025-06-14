@@ -1,0 +1,74 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}เพิ่มคำถามในแบบทดสอบ {{ quiz['quiz_name'] }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">เพิ่มคำถามในแบบทดสอบ: {{ quiz['quiz_name'] }}</h2>
+
+<form method="POST" action="{{ url_for('add_question', quiz_id=quiz['quiz_id']) }}" enctype="multipart/form-data" style="color: #555;">
+  <div class="mb-3">
+    <label for="question_name" class="form-label">คำถาม</label>
+    <textarea class="form-control" id="question_name" name="question_name" rows="3" required></textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="question_image" class="form-label">รูปภาพคำถาม (ถ้ามี)</label>
+    <input type="file" class="form-control" id="question_image" name="question_image" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="choice_a" class="form-label">ตัวเลือก A</label>
+    <input type="text" class="form-control" id="choice_a" name="choice_a" required>
+  </div>
+  <div class="mb-3">
+    <label for="choice_a_image" class="form-label">รูปภาพตัวเลือก A (ถ้ามี)</label>
+    <input type="file" class="form-control" id="choice_a_image" name="choice_a_image" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="choice_b" class="form-label">ตัวเลือก B</label>
+    <input type="text" class="form-control" id="choice_b" name="choice_b" required>
+  </div>
+  <div class="mb-3">
+    <label for="choice_b_image" class="form-label">รูปภาพตัวเลือก B (ถ้ามี)</label>
+    <input type="file" class="form-control" id="choice_b_image" name="choice_b_image" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="choice_c" class="form-label">ตัวเลือก C</label>
+    <input type="text" class="form-control" id="choice_c" name="choice_c" required>
+  </div>
+  <div class="mb-3">
+    <label for="choice_c_image" class="form-label">รูปภาพตัวเลือก C (ถ้ามี)</label>
+    <input type="file" class="form-control" id="choice_c_image" name="choice_c_image" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="choice_d" class="form-label">ตัวเลือก D</label>
+    <input type="text" class="form-control" id="choice_d" name="choice_d" required>
+  </div>
+  <div class="mb-3">
+    <label for="choice_d_image" class="form-label">รูปภาพตัวเลือก D (ถ้ามี)</label>
+    <input type="file" class="form-control" id="choice_d_image" name="choice_d_image" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label for="correct_answer" class="form-label">คำตอบที่ถูกต้อง</label>
+    <select class="form-select" id="correct_answer" name="correct_answer" required>
+      <option value="" disabled selected>-- เลือกคำตอบที่ถูกต้อง --</option>
+      <option value="a">A</option>
+      <option value="b">B</option>
+      <option value="c">C</option>
+      <option value="d">D</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="score" class="form-label">คะแนน</label>
+    <input type="number" class="form-control" id="score" name="score" min="1" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary">บันทึกคำถาม</button>
+  <a href="{{ url_for('quiz_questions', quiz_id=quiz['quiz_id']) }}" class="btn btn-secondary ms-2">ยกเลิก</a>
+</form>
+{% endblock %}
