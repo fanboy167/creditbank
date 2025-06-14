@@ -1219,7 +1219,7 @@ def instructor_courses():
 
 @app.route('/user/dashboard')
 def user_dashboard():
-    return render_template('user/user_dashboard.html')
+    return render_template('user/user_dashboard.html')d
 
 
 
