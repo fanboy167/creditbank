@@ -44,14 +44,14 @@
         <td>{{ lesson.title }}</td>
         <td>{{ lesson.lesson_date.strftime('%Y-%m-%d') if lesson.lesson_date else '-' }}</td>
         <td>
+          <!-- ✅ ปุ่มใหม่: แบบทดสอบ/วิดีโอ (ย้ายไว้หน้าปุ่มแบบทดสอบ) -->
+          <a href="{{ url_for('quiz_and_video', lesson_id=lesson.id) }}" class="btn btn-secondary btn-sm" title="จัดการแบบทดสอบและวิดีโอ">
+            <i class="fas fa-cogs"></i> แบบทดสอบ/วิดีโอ
+          </a>
+
           <!-- ปุ่มแบบทดสอบ -->
           <a href="{{ url_for('quiz_list', lesson_id=lesson.id) }}" class="btn btn-info btn-sm" title="ดูแบบทดสอบ">
             <i class="fas fa-question-circle"></i> แบบทดสอบ
-          </a>
-
-          <!-- ✅ ปุ่มใหม่: แบบทดสอบ/วิดีโอ -->
-          <a href="{{ url_for('quiz_and_video', lesson_id=lesson.id) }}" class="btn btn-secondary btn-sm" title="จัดการแบบทดสอบและวิดีโอ">
-            <i class="fas fa-cogs"></i> แบบทดสอบ/วิดีโอ
           </a>
 
           <!-- ปุ่มแก้ไขบทเรียน -->
