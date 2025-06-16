@@ -930,6 +930,14 @@ def edit_lesson():
 def delete_lesson():
     return render_template('admin/delete_lesson.html')
 
+@app.route('/admin/lesson/<int:lesson_id>/quiz-video')
+@admin_required
+def quiz_and_video(lesson_id):
+    # โหลดข้อมูล quiz และวิดีโอที่เกี่ยวข้องกับบทเรียน
+    # แล้วส่งไปยัง template สำหรับจัดการทั้งคู่
+    return render_template('admin/manage_quiz_video.html', lesson_id=lesson_id)
+
+
 @app.route('/admin/quiz/<int:lesson_id>')
 @admin_required
 def quiz_list(lesson_id):
