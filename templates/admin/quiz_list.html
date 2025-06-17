@@ -53,10 +53,12 @@
           <a href="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}" class="btn btn-warning btn-sm">
             <i class="fas fa-edit"></i> แก้ไข
           </a>
-          <a href="{{ url_for('delete_quiz', quiz_id=quiz.quiz_id) }}" class="btn btn-danger btn-sm"
-             onclick="return confirm('ยืนยันการลบแบบทดสอบนี้?');">
-            <i class="fas fa-trash"></i> ลบ
-          </a>
+          <form action="{{ url_for('delete_quiz', quiz_id=quiz.quiz_id) }}" method="POST" style="display:inline;" 
+      onsubmit="return confirm('ยืนยันการลบแบบทดสอบนี้?');">
+  <button type="submit" class="btn btn-danger btn-sm">
+    <i class="fas fa-trash"></i> ลบ
+  </button>
+</form>
         </td>
       </tr>
       {% endfor %}

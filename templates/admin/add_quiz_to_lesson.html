@@ -1,0 +1,22 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}เพิ่มแบบทดสอบให้บทเรียน{% endblock %}
+
+{% block content %}
+<h2>เพิ่มแบบทดสอบให้บทเรียน:</h2>
+
+<form method="POST">
+  <div class="mb-3">
+    <label for="quiz_id" class="form-label">เลือกแบบทดสอบ</label>
+   <select id="quiz_id" name="quiz_id" class="form-select" required>
+  <option value="">-- เลือกแบบทดสอบ --</option>
+  {% for quiz in available_quizzes %}
+  <option value="{{ quiz.quiz_id }}">{{ quiz.quiz_name }} ({{ quiz.lesson_name }})</option>
+  {% endfor %}
+</select>
+
+  </div>
+
+  <button type="submit" class="btn btn-primary">เพิ่ม</button>
+  <a href="{{ url_for('quiz_and_video', lesson_id=lesson.lesson_id) }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+{% endblock %}

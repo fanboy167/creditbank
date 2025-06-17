@@ -925,17 +925,269 @@ def add_lesson():
 def edit_lesson():
     return render_template('admin/edit_lesson.html')
 
-@app.route('/admin/lesson/delete')
+@app.route('/admin/lesson/delete/<int:lesson_id>', methods=['POST'])
 @admin_required
-def delete_lesson():
-    return render_template('admin/delete_lesson.html')
+def delete_lesson(lesson_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-@app.route('/admin/lesson/<int:lesson_id>/quiz-video')
+    # ✅ ดึง course_id ก่อนลบ
+    cursor.execute("SELECT course_id FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    if not lesson:
+        flash("ไม่พบบทเรียนนี้", "danger")
+        return redirect(url_for('dashboard'))
+
+    course_id = lesson['course_id']
+
+    try:
+        # ✅ ลบโดยใช้ lesson_id
+        cursor.execute("DELETE FROM lesson WHERE lesson_id = %s", (lesson_id,))
+        mysql.connection.commit()
+        flash("ลบบทเรียนเรียบร้อยแล้ว", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"เกิดข้อผิดพลาด: {str(e)}", "danger")
+
+    # ✅ ส่งกลับไปยังหน้า lesson
+    return redirect(url_for('lesson', course_id=course_id))
+
+
+
+
+
+@app.route('/admin/lesson/<int:lesson_id>/quiz_and_video')
 @admin_required
 def quiz_and_video(lesson_id):
-    # โหลดข้อมูล quiz และวิดีโอที่เกี่ยวข้องกับบทเรียน
-    # แล้วส่งไปยัง template สำหรับจัดการทั้งคู่
-    return render_template('admin/manage_quiz_video.html', lesson_id=lesson_id)
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลบทเรียนหลัก
+    cursor.execute("SELECT * FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    if not lesson:
+        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    # 1. ดึงข้อมูลแบบทดสอบ (Quizzes) ที่ผูกกับบทเรียนนี้
+    #    ต้อง JOIN ตาราง quiz_video กับตาราง quiz เพื่อดึงรายละเอียด quiz_name, quiz_type
+    #    ***และ JOIN กับตาราง 'lesson' เพื่อดึง lesson_name***
+    cursor.execute("""
+        SELECT
+            qv.video_id AS qv_id,
+            qv.lesson_id,
+            q.quiz_id,
+            q.quiz_name,
+            q.quiz_type,
+            q.quiz_date,
+            l.lesson_name -- <-- เพิ่มบรรทัดนี้เพื่อดึง lesson_name
+        FROM quiz_video qv
+        INNER JOIN quiz q ON qv.quiz_id = q.quiz_id
+        INNER JOIN lesson l ON q.lesson_id = l.lesson_id -- <-- เพิ่ม INNER JOIN กับตาราง lesson
+        WHERE qv.lesson_id = %s AND qv.quiz_id IS NOT NULL -- กรองเฉพาะรายการที่เป็นแบบทดสอบ
+        ORDER BY qv.video_id ASC
+    """, (lesson_id,))
+    quizzes_for_lesson = cursor.fetchall()
+
+    # 2. ดึงข้อมูลวิดีโอ (Videos) ที่ผูกกับบทเรียนนี้
+    #    (ส่วนนี้ไม่จำเป็นต้องเปลี่ยนแปลงเพราะแสดง video.title ซึ่งอยู่ใน quiz_video อยู่แล้ว)
+    cursor.execute("""
+        SELECT
+            qv.video_id AS video_id,
+            qv.lesson_id,
+            qv.title,
+            qv.youtube_link,
+            qv.description,
+            qv.time_duration,
+            qv.preview,
+            qv.video_image
+        FROM quiz_video qv
+        WHERE qv.lesson_id = %s AND qv.quiz_id IS NULL -- กรองเฉพาะรายการที่เป็นวิดีโอ
+        ORDER BY qv.video_id ASC
+    """, (lesson_id,))
+    videos_for_lesson = cursor.fetchall()
+
+    cursor.close()
+
+    return render_template('admin/quiz_and_video.html',
+                           lesson=lesson,
+                           quizzes=quizzes_for_lesson,
+                           videos=videos_for_lesson)
+
+
+@app.route('/admin/lesson/<int:lesson_id>/quiz/add', methods=['GET', 'POST'])
+@admin_required
+def add_quiz_to_lesson(lesson_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลบทเรียนที่กำลังจะเพิ่มแบบทดสอบให้
+    cursor.execute("SELECT * FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    # --- ส่วนนี้ที่ต้องมีเพื่อให้ all_quizzes_data ถูกกำหนดค่า ---
+    # ดึงข้อมูลแบบทดสอบทั้งหมดจากตาราง 'quiz'
+    # เพื่อให้ได้ quiz_name และ quiz_type ไปแสดงใน dropdown และใช้ใน INSERT
+    cursor.execute("""
+        SELECT q.quiz_id, q.quiz_name, q.quiz_type, q.quiz_date, l.lesson_name
+        FROM quiz q
+        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
+    """)
+    all_quizzes_data = cursor.fetchall() # <-- บรรทัดนี้ที่ต้องอยู่ตรงนี้
+
+    if request.method == 'POST':
+        selected_quiz_id = request.form['quiz_id']
+
+        selected_quiz_name = None
+        # ลูปนี้จะทำงานได้เพราะ all_quizzes_data ถูกกำหนดค่าแล้ว
+        for q_item in all_quizzes_data:
+            if q_item['quiz_id'] == int(selected_quiz_id):
+                selected_quiz_name = q_item['quiz_name']
+                break
+
+        if selected_quiz_name is None:
+            flash('ไม่พบแบบทดสอบที่เลือก กรุณาลองใหม่อีกครั้ง', 'danger')
+            cursor.close()
+            return redirect(url_for('add_quiz_to_lesson', lesson_id=lesson_id))
+
+        # --- ส่วน INSERT statement ที่ปรับปรุงล่าสุด ---
+        cursor.execute("""
+            INSERT INTO quiz_video (
+                lesson_id,
+                quiz_id,
+                title,
+                youtube_link,
+                description,
+                time_duration,
+                preview,
+                video_image
+            ) VALUES (%s, %s, %s, '', '', '', '', '')
+        """, (lesson_id, selected_quiz_id, selected_quiz_name))
+
+        mysql.connection.commit()
+        cursor.close()
+
+        flash('เพิ่มแบบทดสอบเรียบร้อยแล้ว', 'success')
+        return redirect(url_for('quiz_and_video', lesson_id=lesson_id))
+
+    cursor.close()
+    return render_template('admin/add_quiz_to_lesson.html', lesson=lesson, available_quizzes=all_quizzes_data)
+
+
+
+
+@app.route('/admin/lesson/<int:lesson_id>/add_video', methods=['GET', 'POST'])
+@admin_required
+def add_video(lesson_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงชื่อบทเรียนมาแสดง
+    cursor.execute("SELECT * FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    # ดึงแบบทดสอบทั้งหมด
+    cursor.execute("SELECT * FROM quiz")
+    all_quizzes = cursor.fetchall()
+
+    if request.method == 'POST':
+        title = request.form['title']
+        youtube_link = request.form['youtube_link']
+        description = request.form.get('description')
+        time_duration = request.form.get('time_duration')
+        video_image = None
+
+        # อัปโหลดรูปภาพ (ถ้ามี)
+        if 'video_image' in request.files:
+            file = request.files['video_image']
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.root_path, 'static/video_images', filename))
+                video_image = filename
+
+        # บันทึกข้อมูลลงฐานข้อมูล
+        cursor.execute("""
+            INSERT INTO quiz_video (title, youtube_link, description, time_duration, video_image, lesson_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (title, youtube_link, description, time_duration, video_image, lesson_id))
+        mysql.connection.commit()
+        cursor.close()
+        flash('เพิ่มวิดีโอสำเร็จ', 'success')
+        return redirect(url_for('quiz_and_video', lesson_id=lesson_id))
+
+    cursor.close()
+    return render_template('admin/add_video.html', lesson=lesson, all_quizzes=all_quizzes)
+
+
+@app.route('/admin/video/<int:video_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_video(video_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM quiz_video WHERE video_id = %s", (video_id,))
+    video = cursor.fetchone()
+
+    if request.method == 'POST':
+        title = request.form['title']
+        youtube_link = request.form['youtube_link']
+        description = request.form.get('description')
+        time_duration = request.form.get('time_duration')
+
+        # อัปเดตรายการวิดีโอ
+        cursor.execute("""
+            UPDATE quiz_video
+            SET title=%s, youtube_link=%s, description=%s, time_duration=%s
+            WHERE video_id=%s
+        """, (title, youtube_link, description, time_duration, video_id))
+        mysql.connection.commit()
+        cursor.close()
+        flash('แก้ไขวิดีโอเรียบร้อยแล้ว', 'success')
+        return redirect(url_for('quiz_and_video', lesson_id=video['lesson_id']))
+
+    cursor.close()
+    return render_template('admin/edit_video.html', video=video)
+
+
+@app.route('/admin/lesson_content/remove/<int:qv_entry_id>', methods=['POST'])
+@admin_required
+def remove_lesson_content(qv_entry_id):
+    # --- แก้ไขตรงนี้: เพิ่ม MySQLdb.cursors.DictCursor ---
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    lesson_id_to_redirect = None
+
+    print(f"\n--- DEBUG: Entering remove_lesson_content for qv_entry_id: {qv_entry_id} ---")
+
+    try:
+        cursor.execute("SELECT lesson_id FROM quiz_video WHERE video_id = %s", (qv_entry_id,))
+        result = cursor.fetchone()
+        print(f"DEBUG: SELECT result for qv_entry_id {qv_entry_id}: {result}")
+
+        if result:
+            # ตรงนี้จะใช้งานได้ถูกต้องแล้วเพราะ cursor เป็น DictCursor
+            lesson_id_to_redirect = result['lesson_id']
+            print(f"DEBUG: Found lesson_id: {lesson_id_to_redirect}. Attempting DELETE.")
+            cursor.execute("DELETE FROM quiz_video WHERE video_id = %s", (qv_entry_id,))
+            mysql.connection.commit()
+            print("DEBUG: DELETE successful, commit done.")
+            flash('ลบเนื้อหาออกจากบทเรียนเรียบร้อยแล้ว', 'success')
+        else:
+            print(f"DEBUG: No entry found for qv_entry_id {qv_entry_id}. Flashing 'danger' and redirecting to dashboard.")
+            flash('ไม่พบรายการเนื้อหาที่ระบุเพื่อลบ', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"ERROR: Exception during deletion: {e}")
+        flash(f'เกิดข้อผิดพลาดในการลบเนื้อหา: {e}', 'danger')
+    finally:
+        cursor.close()
+        print("DEBUG: Cursor closed.")
+
+    if lesson_id_to_redirect:
+        print(f"DEBUG: Redirecting to quiz_and_video for lesson_id: {lesson_id_to_redirect}")
+        return redirect(url_for('quiz_and_video', lesson_id=lesson_id_to_redirect))
+    else:
+        print("DEBUG: Fallback redirect to admin_dashboard (lesson_id_to_redirect was None).")
+        return redirect(url_for('admin_dashboard'))
+
+
 
 
 @app.route('/admin/quiz/<int:lesson_id>')
@@ -995,12 +1247,29 @@ def edit_quiz(quiz_id):
 @admin_required
 def delete_quiz(quiz_id):
     cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM quiz WHERE quiz_id = %s", (quiz_id,))
-    mysql.connection.commit()
-    cursor.close()
-    flash('ลบแบบทดสอบเรียบร้อยแล้ว', 'success')
-    # คุณอาจจะ redirect ไปหน้า quiz_list ที่บทเรียนเดียวกัน
-    return redirect(request.referrer or url_for('quiz_list'))
+    # เช็คว่ามี quiz นี้อยู่ไหม พร้อมดึง lesson_id
+    cursor.execute("SELECT lesson_id FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz = cursor.fetchone()
+
+    if not quiz:
+        flash('ไม่พบแบบทดสอบนี้', 'danger')
+        cursor.close()
+        return redirect(request.referrer or url_for('dashboard'))
+
+    lesson_id = quiz[0]
+
+    try:
+        cursor.execute("DELETE FROM quiz WHERE quiz_id = %s", (quiz_id,))
+        mysql.connection.commit()
+        flash('ลบแบบทดสอบเรียบร้อยแล้ว', 'success')
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'เกิดข้อผิดพลาด: {str(e)}', 'danger')
+    finally:
+        cursor.close()
+
+    return redirect(url_for('quiz_list', lesson_id=lesson_id))
+
 
 @app.route('/admin/quiz/<int:quiz_id>/questions')
 @admin_required
@@ -1032,7 +1301,6 @@ def add_question(quiz_id):
         correct_answer = request.form['correct_answer'].lower()
         score = int(request.form['score'])
 
-        # ฟังก์ชันช่วยอัปโหลดไฟล์
         def save_image(file_key):
             if file_key in request.files:
                 file = request.files[file_key]
@@ -1042,9 +1310,8 @@ def add_question(quiz_id):
                     os.makedirs(upload_path, exist_ok=True)
                     file.save(os.path.join(upload_path, filename))
                     return filename
-            return None
+            return ''  # แก้ไขที่นี่
 
-        # อัปโหลดรูปคำถามและรูปตัวเลือกแยกกัน
         question_image = save_image('question_image')
         choice_a_image = save_image('choice_a_image')
         choice_b_image = save_image('choice_b_image')
@@ -1071,6 +1338,7 @@ def add_question(quiz_id):
 
     cursor.close()
     return render_template('admin/add_question.html', quiz=quiz, lesson_id=quiz['lesson_id'])
+
 
 
 

@@ -9,10 +9,8 @@
       {% endblock %}
     </title>
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
     <style>
@@ -46,10 +44,8 @@
     </style>
   </head>
   <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
       <div class="container-fluid">
-        <!-- ปุ่มกลับไปหน้าเว็บไซต์แทนคำว่า AdminLTE -->
         <a href="/" target="_blank" class="btn btn-outline-light"><i class="fas fa-home"></i> กลับหน้าเว็บไซต์</a>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
@@ -57,44 +53,55 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
            <li class="nav-item d-flex align-items-center">
-  {% if current_user.is_authenticated and current_user.profile_images %}
-    {% set profile_img = current_user.profile_image %}
-{% else %}
-    {% set profile_img = 'default.jpg' %}
-{% endif %}
+            {% if current_user.is_authenticated and current_user.profile_images %}
+              {% set profile_img = current_user.profile_image %}
+            {% else %}
+              {% set profile_img = 'default.jpg' %}
+            {% endif %}
 
-  <img
-    src="{{ url_for('static', filename='profile_images/' + profile_img) }}"
-    alt="Profile Image"
-    class="rounded-circle"
-    style="width: 32px; height: 32px; object-fit: cover; margin-right: 8px;"
-  />
-  <span class="navbar-text text-white">
-    {{ current_user.first_name }} {{ current_user.last_name }}
-  </span>
-</li>
+            <img
+              src="{{ url_for('static', filename='profile_images/' + profile_img) }}"
+              alt="Profile Image"
+              class="rounded-circle"
+              style="width: 32px; height: 32px; object-fit: cover; margin-right: 8px;"
+            />
+            <span class="navbar-text text-white">
+              {{ current_user.first_name }} {{ current_user.last_name }}
+            </span>
+          </li>
 
           </ul>
         </div>
       </div>
     </nav>
 
-    <!-- Sidebar -->
     <div id="sidebar">
       {% include 'admin/admin_sidebar.html' %}
     </div>
 
-    <!-- Main Content -->
     <div id="content">
+      {# --- เพิ่มโค้ดสำหรับแสดง Flash Messages ตรงนี้ --- #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="container mt-3"> {# ใช้ container ของ Bootstrap เพื่อจัดกึ่งกลางและระยะห่าง #}
+            {% for category, message in messages %}
+              {# ใช้ alert ของ Bootstrap #}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {# --- สิ้นสุดโค้ด Flash Messages --- #}
+
       {% block content %}
-        <!-- เนื้อหาหลักของแต่ละหน้า -->
-      {% endblock %}
+        {% endblock %}
     </div>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   </body>
 </html>

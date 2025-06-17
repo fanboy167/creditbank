@@ -60,10 +60,11 @@
           </a>
 
           <!-- ปุ่มลบบทเรียน -->
-          <a href="{{ url_for('delete_lesson', lesson_id=lesson.id) }}" class="btn btn-danger btn-sm" 
-             onclick="return confirm('ยืนยันการลบบทเรียนนี้?');">
-            <i class="fas fa-trash"></i> ลบ
-          </a>
+          <form action="{{ url_for('delete_lesson', lesson_id=lesson.id) }}" method="POST" onsubmit="return confirm('ยืนยันการลบบทเรียนนี้?');" style="display:inline;">
+  <button type="submit" class="btn btn-danger btn-sm">
+    <i class="fas fa-trash"></i> ลบ
+  </button>
+</form>
         </td>
       </tr>
       {% endfor %}
