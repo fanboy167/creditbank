@@ -5,33 +5,69 @@
 {% block content %}
 <h2 class="mb-4">เพิ่มบทเรียนใหม่</h2>
 
-<form method="POST" action="{{ url_for('add_lesson') }}">
-  <div class="mb-3">
-    <label for="lesson_name" class="form-label">ชื่อบทเรียน</label>
-    <input type="text" class="form-control" id="lesson_name" name="lesson_name" required>
-  </div>
+<div class="card p-4 bg-light shadow-sm">
+    <form method="POST" action="{{ url_for('add_lesson') }}">
+        {{ form.hidden_tag() }} {# สำคัญสำหรับ CSRF protection #}
 
-  <div class="mb-3">
-    <label for="course_id" class="form-label">หลักสูตร</label>
-    <select class="form-select" id="course_id" name="course_id" required>
-      <option value="">-- เลือกหลักสูตร --</option>
-      {% for course in courses %}
-      <option value="{{ course.id }}">{{ course.title }}</option>
-      {% endfor %}
-    </select>
-  </div>
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control", placeholder="ชื่อบทเรียน", required=True) }}
+            {% if form.title.errors %}
+                <div class="text-danger">
+                    {% for error in form.title.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
 
-  <div class="mb-3">
-    <label for="instructor_id" class="form-label">ผู้สอน</label>
-    <select class="form-select" id="instructor_id" name="instructor_id" required>
-      <option value="">-- เลือกผู้สอน --</option>
-      {% for instructor in instructors %}
-      <option value="{{ instructor.id }}">{{ instructor.first_name }} {{ instructor.last_name }}</option>
-      {% endfor %}
-    </select>
-  </div>
+        <div class="mb-3">
+            {{ form.course_id.label(class="form-label") }}
+            {{ form.course_id(class="form-select", required=True) }}
+            {% if form.course_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.course_id.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
 
-  <button type="submit" class="btn btn-primary">บันทึก</button>
-  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">ยกเลิก</a>
-</form>
+        <div class="mb-3">
+            {{ form.instructor_id.label(class="form-label") }}
+            {{ form.instructor_id(class="form-select", required=True) }}
+            {% if form.instructor_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.instructor_id.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# เนื่องจากเราตกลงที่จะไม่ใช้ 'description' และ 'video_url' #}
+        {# ฟิลด์เหล่านี้จึงถูกลบออกจาก LessonForm และจึงต้องลบออกจากเทมเพลตนี้ด้วย #}
+        {# หากคุณเคยมีฟิลด์เหล่านี้ใน LessonForm แต่ลบไปแล้ว ก็ไม่ต้องเพิ่มกลับมา #}
+        {# ตัวอย่างเช่น หากคุณต้องการเพิ่ม lesson_date กลับมา ให้เพิ่มดังนี้: #}
+        <div class="mb-3">
+            {{ form.lesson_date.label(class="form-label") }}
+            {{ form.lesson_date(class="form-control", type="date") }}
+            {% if form.lesson_date.errors %}
+                <div class="text-danger">
+                    {% for error in form.lesson_date.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> บันทึก
+        </button>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-times-circle me-1"></i> ยกเลิก
+        </a>
+    </form>
+</div>
 {% endblock %}
