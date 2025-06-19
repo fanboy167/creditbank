@@ -1802,13 +1802,73 @@ def registered_courses():
 def instructor_attendance_exams():
     return render_template('instructor/attendance_exams.html')
 
-@app.route('/instructor/categories')
+@app.route('/instructor/categories', methods=['GET', 'POST'])
+@instructor_required # ✅ แก้ไข: ใช้ @instructor_required เพื่อให้เฉพาะ Instructor เข้าถึงได้
 def instructor_category():
-    return render_template('instructor/category_list')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    if request.method == 'POST':
+        category_name = request.form['category_name'].strip()
+
+        # ตรวจสอบว่ามีชื่อนี้อยู่แล้วหรือยัง
+        cursor.execute("SELECT * FROM categories WHERE name = %s", (category_name,))
+        existing = cursor.fetchone()
+        if existing:
+            flash('หมวดหมู่นี้มีอยู่แล้ว', 'warning')
+        else:
+            cursor.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
+            mysql.connection.commit()
+            flash('เพิ่มหมวดหมู่เรียบร้อยแล้ว', 'success')
+
+    # ดึงข้อมูลจากตาราง categories
+    cursor.execute("SELECT * FROM categories ORDER BY id DESC")
+    categories = cursor.fetchall()
+    cursor.close()
+
+    return render_template('instructor/category_list.html', categories=categories)
+
+@app.route('/instructor/categories/edit/<int:category_id>', methods=['GET', 'POST'])
+@instructor_required # ✅ แก้ไข: ใช้ @instructor_required
+def instructor_edit_category(category_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+    category = cursor.fetchone()
+
+    if not category:
+        flash('ไม่พบหมวดหมู่', 'danger')
+        return redirect(url_for('instructor_category')) # ✅ แก้ไข: ชี้ไปที่ instructor_category
+
+    if request.method == 'POST':
+        new_name = request.form['category_name'].strip()
+
+        # ตรวจสอบชื่อซ้ำ (ยกเว้นตัวเอง)
+        cursor.execute("SELECT * FROM categories WHERE name = %s AND id != %s", (new_name, category_id))
+        existing = cursor.fetchone()
+        if existing:
+            flash('ชื่อหมวดหมู่นี้ถูกใช้ไปแล้ว', 'warning')
+        else:
+            cursor.execute("UPDATE categories SET name = %s WHERE id = %s", (new_name, category_id))
+            mysql.connection.commit()
+            flash('แก้ไขหมวดหมู่เรียบร้อยแล้ว', 'success')
+            return redirect(url_for('instructor_category')) # ✅ แก้ไข: ชี้ไปที่ instructor_category
+
+    cursor.close()
+    return render_template('instructor/edit_category.html', category=category)
+
+@app.route('/instructor/categories/delete/<int:category_id>', methods=['POST'])
+@instructor_required # ✅ แก้ไข: ใช้ @instructor_required
+def instructor_delete_category(category_id):
+    cursor = mysql.connection.cursor()
+    cursor.execute("DELETE FROM categories WHERE id = %s", (category_id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash('ลบหมวดหมู่เรียบร้อยแล้ว', 'success')
+    return redirect(url_for('instructor_category')) # ✅ แก้ไข: ชี้ไปที่ instructor_category
 
 @app.route('/instructor/courses')
 def instructor_courses():
-    return render_template('instructor/course_list')
+    return render_template('instructor/course_list.html')
 
 @app.route('/user/dashboard')
 def user_dashboard():
