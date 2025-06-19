@@ -6,106 +6,84 @@
 <h2 class="mb-4">จัดการหมวดหมู่หลักสูตร</h2>
 
 <style>
-    .dataTables_filter {
-        text-align: right !important;
-    }
+  .dataTables_filter {
+    text-align: right !important;
+  }
 
-    .dataTables_filter label {
-        display: inline-flex !important;
-        flex-direction: row !important;
-        align-items: center;
-        gap: 0.5rem;
-    }
+  .dataTables_filter label {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
 </style>
 
 <div class="card p-4 bg-light shadow-sm mb-4">
-    <form method="POST" action="{{ url_for('instructor_category') }}"> {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
-        <div class="row mb-3">
-            <label class="col-sm-2 col-form-label">ชื่อหมวดหมู่</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control" name="category_name" required>
-            </div>
-            <div class="col-sm-2">
-                <button type="submit" class="btn btn-success w-100">
-                    <i class="fas fa-plus-circle me-1"></i> เพิ่ม
-                </button>
-            </div>
-        </div>
-    </form>
+  <form method="POST" action="{{ url_for('category_list') }}">
+    <div class="row mb-3">
+      <label class="col-sm-2 col-form-label">ชื่อหมวดหมู่</label>
+      <div class="col-sm-8">
+        <input type="text" class="form-control" name="category_name" required>
+      </div>
+      <div class="col-sm-2">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="fas fa-plus-circle me-1"></i> เพิ่ม
+        </button>
+      </div>
+    </div>
+  </form>
 </div>
 
 <div class="card p-4 bg-light shadow-sm">
-    <table id="categoryTable" class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>No.</th>
-                <th>ชื่อหมวดหมู่</th>
-                <th>จัดการ</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for cat in categories %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ cat.name }}</td>
-                <td>
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('instructor_edit_category', category_id=cat.id) }}" class="btn btn-warning btn-sm"> {# ✅ ตรงนี้ **ต้องมี** category_id=cat.id #}
-                            <i class="fas fa-edit"></i> แก้ไข
-                        </a>
-                        <form method="POST" action="{{ url_for('instructor_delete_category', category_id=cat.id) }}" {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
-                              onsubmit="return confirm('คุณต้องการลบหมวดหมู่นี้หรือไม่?')">
-                            <button type="submit" class="btn btn-danger btn-sm">
-                                <i class="fas fa-trash-alt"></i> ลบ
-                            </button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+  <table id="categoryTable" class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>ชื่อหมวดหมู่</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ cat.name }}</td>
+        <td>
+          <div class="d-flex gap-2">
+            <!-- ปุ่มแก้ไข -->
+            <a href="{{ url_for('edit_category', category_id=cat.id) }}" class="btn btn-warning btn-sm">
+              <i class="fas fa-edit"></i> แก้ไข
+            </a>
+            <!-- ปุ่มลบ -->
+            <form method="POST" action="{{ url_for('delete_category', category_id=cat.id) }}"
+                  onsubmit="return confirm('คุณต้องการลบหมวดหมู่นี้หรือไม่?')">
+              <button type="submit" class="btn btn-danger btn-sm">
+                <i class="fas fa-trash-alt"></i> ลบ
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
+<!-- JS DataTables -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-<<<<<<< HEAD
   $(document).ready(function () {
     $('#categoryTable').DataTable({
       paging: true,
       searching: true,
       ordering: true,
       autoWidth: false,
-      responsive: true,d
-=======
-    $(document).ready(function () {
-        $('#categoryTable').DataTable({
-            paging: true,
-            searching: true,
-            ordering: true,
-            autoWidth: false,
-            responsive: true,
-            language: {
-                "sProcessing": "กำลังดำเนินการ...",
-                "sLengthMenu": "แสดง _MENU_ รายการ",
-                "sZeroRecords": "ไม่พบข้อมูล",
-                "sInfo": "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
-                "sInfoEmpty": "แสดง 0 ถึง 0 จาก 0 รายการ",
-                "sInfoFiltered": "(กรองข้อมูลจากทั้งหมด _MAX_ รายการ)",
-                "sSearch": "ค้นหา:",
-                "oPaginate": {
-                    "sFirst": "หน้าแรก",
-                    "sPrevious": "ก่อนหน้า",
-                    "sNext": "ถัดไป",
-                    "sLast": "หน้าสุดท้าย"
-                }
-            }
-        });
->>>>>>> DEV
+      responsive: true,
     });
+  });
 </script>
 {% endblock %}
