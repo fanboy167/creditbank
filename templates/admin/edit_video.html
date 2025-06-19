@@ -1,0 +1,52 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}แก้ไขวิดีโอ{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">แก้ไขวิดีโอสำหรับบทเรียน: {{ lesson.title }}</h2>
+
+<div class="card p-4 bg-light shadow-sm">
+    <form method="POST" action="{{ url_for('edit_video', video_id=video.video_id) }}" enctype="multipart/form-data">
+        {# คุณอาจจะต้องการ hidden_tag() ถ้าคุณจะใช้ Flask-WTF Form สำหรับ Video ด้วย #}
+        {# ถ้าใช้ request.form ตรงๆ ไม่จำเป็นต้องมี hidden_tag #}
+
+        <div class="mb-3">
+            <label for="title" class="form-label">หัวข้อวิดีโอ</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ video.title }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="youtube_link" class="form-label">ลิงก์ YouTube (URL)</label>
+            <input type="url" class="form-control" id="youtube_link" name="youtube_link" value="{{ video.youtube_link or '' }}" placeholder="เช่น https://www.youtube.com/watch?v=xxxxxxxx">
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">คำอธิบายวิดีโอ</label>
+            <textarea class="form-control" id="description" name="description" rows="3">{{ video.description or '' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="time_duration" class="form-label">ระยะเวลา (นาที:วินาที)</label>
+            <input type="text" class="form-control" id="time_duration" name="time_duration" value="{{ video.time_duration or '' }}" placeholder="เช่น 05:30">
+        </div>
+
+        <div class="mb-3">
+            <label for="video_image" class="form-label">รูปภาพปกวิดีโอ (เลือกใหม่)</label>
+            <input type="file" class="form-control" id="video_image" name="video_image" accept="image/*">
+            {% if video.video_image %}
+                <small class="form-text text-muted">รูปภาพปัจจุบัน: <a href="{{ url_for('static', filename='video_images/' + video.video_image) }}" target="_blank">{{ video.video_image }}</a></small>
+                <img src="{{ url_for('static', filename='video_images/' + video.video_image) }}" alt="Video Image" class="img-thumbnail mt-2" style="max-width: 150px;">
+            {% else %}
+                <small class="form-text text-muted">ยังไม่มีรูปภาพปก</small>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-save me-1"></i> บันทึกการแก้ไข
+        </button>
+        <a href="{{ url_for('quiz_and_video', lesson_id=lesson.lesson_id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> กลับ
+        </a>
+    </form>
+</div>
+{% endblock %}

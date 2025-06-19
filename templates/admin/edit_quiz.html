@@ -1,0 +1,146 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block title %}แก้ไขแบบทดสอบ{% endblock %}
+
+{% block content %}
+
+{# ตรวจสอบว่าอยู่ในโหมดเลือกแบบทดสอบหรือไม่ #}
+{% if selection_mode %}
+
+    <h2 class="mb-4">เลือกแบบทดสอบที่ต้องการแก้ไข</h2>
+
+    <div class="card p-4 bg-light shadow-sm">
+        <form method="POST" action="{{ url_for('edit_quiz') }}"> {# ส่งไปที่ edit_quiz โดยไม่มี ID #}
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                {{ form.select_quiz_id.label(class="form-label") }}
+                {{ form.select_quiz_id(class="form-select", required=True) }}
+                {% if form.select_quiz_id.errors %}
+                    <div class="text-danger">
+                        {% for error in form.select_quiz_id.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-edit me-1"></i> เลือกและแก้ไข
+            </button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-times-circle me-1"></i> ยกเลิก
+            </a>
+        </form>
+    </div>
+
+{% else %} {# ถ้าไม่ใช่ selection_mode (คือโหมดแก้ไขแบบทดสอบจริง) #}
+
+    <h2 class="mb-4">แก้ไขแบบทดสอบ: {{ quiz.quiz_name }}</h2>
+
+    <div class="card p-4 bg-light shadow-sm">
+        <form method="POST" action="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}">
+            {{ form.hidden_tag() }} {# สำคัญสำหรับ CSRF protection #}
+
+            <div class="mb-3">
+                {{ form.quiz_name.label(class="form-label") }}
+                {{ form.quiz_name(class="form-control", placeholder="ชื่อแบบทดสอบ", required=True) }}
+                {% if form.quiz_name.errors %}
+                    <div class="text-danger">
+                        {% for error in form.quiz_name.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                {{ form.quiz_type.label(class="form-label") }}
+                {{ form.quiz_type(class="form-select", required=True) }}
+                {% if form.quiz_type.errors %}
+                    <div class="text-danger">
+                        {% for error in form.quiz_type.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                {{ form.passing_percentage.label(class="form-label") }}
+                {{ form.passing_percentage(class="form-control", min="0", max="100", required=True) }}
+                {% if form.passing_percentage.errors %}
+                    <div class="text-danger">
+                        {% for error in form.passing_percentage.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            {# ✅ ต้องมีฟิลด์ form.lesson_id ตรงนี้ #}
+            <div class="mb-3">
+                {{ form.lesson_id.label(class="form-label") }}
+                {{ form.lesson_id(class="form-select", required=True) }}
+                {% if form.lesson_id.errors %}
+                    <div class="text-danger">
+                        {% for error in form.lesson_id.errors %}
+                            <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-save me-1"></i> บันทึกการแก้ไข
+            </button>
+            <a href="{{ url_for('quiz_and_video', lesson_id=lesson.lesson_id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i> กลับ
+            </a>
+        </form>
+        
+        <hr class="my-4">
+
+        {# ส่วนสำหรับการจัดการคำถามในแบบทดสอบ #}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>คำถามในแบบทดสอบนี้</h3>
+            <a href="{{ url_for('add_question', quiz_id=quiz.quiz_id) }}" class="btn btn-success">
+                <i class="fas fa-plus-circle"></i> เพิ่มคำถาม
+            </a>
+        </div>
+
+        {% if questions %}
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>คำถาม</th>
+                    <th>คะแนน</th>
+                    <th>จัดการ</th> {# คืนคอลัมน์จัดการในตารางคำถาม (ถ้าต้องการ) #}
+                </tr>
+            </thead>
+            <tbody>
+                {% for question in questions %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ question.question_name }}</td>
+                    <td>{{ question.score }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_question', question_id=question.question_id) }}" class="btn btn-warning btn-sm">แก้ไข</a>
+                        <form action="{{ url_for('delete_question', question_id=question.question_id) }}" method="POST" onsubmit="return confirm('ยืนยันการลบคำถามนี้?');" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">ยังไม่มีคำถามสำหรับแบบทดสอบนี้</p>
+        {% endif %}
+
+    </div>
+
+{% endif %} {# สิ้นสุด if selection_mode #}
+
+{% endblock %}

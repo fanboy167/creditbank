@@ -1,0 +1,23 @@
+{% extends "instructor/instructor_layout.html" %}
+
+{% block title %}แก้ไขหมวดหมู่{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">แก้ไขหมวดหมู่หลักสูตร</h2>
+
+<div class="card p-4 bg-light shadow-sm">
+  <form method="POST" action="{{ url_for('instructor_edit_category', category_id=category.id) }}">
+    <div class="mb-3">
+      <label class="form-label">ชื่อหมวดหมู่</label>
+      <input type="text" class="form-control" name="category_name" value="{{ category.name }}" required>
+    </div>
+
+    <div class="text-end">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save me-1"></i> บันทึกการแก้ไข
+      </button>
+      <a href="{{ url_for('instructor_category') }}" class="btn btn-secondary ms-2">ยกเลิก</a> {# ✅ แก้ไขตรงนี้: กลับไปที่หน้ารายการหมวดหมู่ของ Instructor #}
+    </div>
+  </form>
+</div>
+{% endblock %}

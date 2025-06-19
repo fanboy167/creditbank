@@ -1,0 +1,98 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}จัดการแบบทดสอบและวิดีโอ{% endblock %}
+{% block content %}
+<h2>จัดการแบบทดสอบและวิดีโอของบทเรียน: {{ lesson.title }}</h2>
+
+<a href="{{ url_for('add_quiz_to_lesson', lesson_id=lesson.lesson_id) }}" class="btn btn-success mb-3 me-2">
+    <i class="fas fa-plus-circle"></i> เพิ่มแบบทดสอบ
+</a>
+
+<a href="{{ url_for('add_video', lesson_id=lesson.lesson_id) }}" class="btn btn-primary mb-3">
+    <i class="fas fa-video"></i> เพิ่มวิดีโอสอน
+</a>
+
+<hr>
+
+<table class="table table-bordered align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th>No</th>
+            <th>ประเภท</th> <th>หัวข้อ</th> <th>ลิงก์ YouTube</th>
+            <th>คำอธิบาย</th>
+            <th>ระยะเวลา</th>
+            <th>จัดการ</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set count = 1 %}
+
+        {% for quiz in quizzes if quiz.quiz_type == 'Pre-test' %}
+        <tr class="table-primary">
+            <td>{{ count }}</td>
+            <td>Pre-test</td>
+            <td>{{ quiz.quiz_name }}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>
+                {# ไม่แสดงปุ่ม "แก้ไข" สำหรับ Pre-test #}
+                <form action="{{ url_for('remove_lesson_content', qv_entry_id=quiz.qv_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('ยืนยันการลบแบบทดสอบออกจากบทเรียนนี้?');">
+                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                </form>
+            </td>
+        </tr>
+        {% set count = count + 1 %}
+        {% endfor %}
+
+        {% for video in videos %}
+        <tr class="table-info">
+            <td>{{ count }}</td>
+            <td>วิดีโอ</td>
+            <td>{{ video.title }}</td>
+            <td>
+                {% if video.youtube_link %}
+                    <a href="{{ video.youtube_link }}" target="_blank">เปิดลิงก์</a>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>{{ video.description or '-' }}</td>
+            <td>{{ video.time_duration or '-' }}</td>
+            <td>
+                {# ✅ แสดงปุ่ม "แก้ไข" สำหรับวิดีโอ #}
+                <a href="{{ url_for('edit_video', video_id=video.video_id) }}" class="btn btn-warning btn-sm">แก้ไข</a>
+                <form action="{{ url_for('remove_lesson_content', qv_entry_id=video.video_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('ยืนยันการลบวิดีโอออกจากบทเรียนนี้?');">
+                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                </form>
+            </td>
+        </tr>
+        {% set count = count + 1 %}
+        {% endfor %}
+
+        {% for quiz in quizzes if quiz.quiz_type == 'Post_test' %}
+        <tr class="table-success">
+            <td>{{ count }}</td>
+            <td>Post-test</td>
+            <td>{{ quiz.quiz_name }}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>
+                {# ไม่แสดงปุ่ม "แก้ไข" สำหรับ Post-test #}
+                <form action="{{ url_for('remove_lesson_content', qv_entry_id=quiz.qv_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('ยืนยันการลบแบบทดสอบออกจากบทเรียนนี้?');">
+                    <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+                </form>
+            </td>
+        </tr>
+        {% set count = count + 1 %}
+        {% endfor %}
+
+        {% if count == 1 %}
+        <tr>
+            <td colspan="7" class="text-center">ยังไม่มีแบบทดสอบหรือวิดีโอในบทเรียนนี้</td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+{% endblock %}

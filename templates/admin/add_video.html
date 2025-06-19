@@ -1,0 +1,41 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}เพิ่มวิดีโอสอน{% endblock %}
+{% block content %}
+<h2>เพิ่มวิดีโอสอนสำหรับบทเรียน: {{ lesson.lesson_name }}</h2>
+
+<form method="POST" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label for="title" class="form-label">ชื่อวิดีโอ</label>
+    <input type="text" class="form-control" id="title" name="title" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="youtube_link" class="form-label">ลิงก์ YouTube</label>
+    <input type="url" class="form-control" id="youtube_link" name="youtube_link" required placeholder="https://youtube.com/xxxx">
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">คำอธิบาย</label>
+    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="time_duration" class="form-label">ระยะเวลา (เช่น 12:34)</label>
+    <input type="text" class="form-control" id="time_duration" name="time_duration" placeholder="00:00">
+  </div>
+
+  <div class="form-check mb-3">
+    <input type="checkbox" class="form-check-input" id="is_sample" name="is_sample" value="1">
+    <label class="form-check-label" for="is_sample">ตัวอย่าง (Sample)</label>
+  </div>
+
+  <div class="mb-3">
+    <label for="video_image" class="form-label">เลือกรูปภาพตัวอย่าง</label>
+    <input type="file" class="form-control" id="video_image" name="video_image" accept="image/*">
+  </div>
+
+  <button type="submit" class="btn btn-primary">บันทึก</button>
+  <a href="{{ url_for('quiz_and_video', lesson_id=lesson.lesson_id) }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+
+{% endblock %}
