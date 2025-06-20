@@ -1867,8 +1867,268 @@ def instructor_delete_category(category_id):
     return redirect(url_for('instructor_category')) # ✅ แก้ไข: ชี้ไปที่ instructor_category
 
 @app.route('/instructor/courses')
-def instructor_courses():
-    return render_template('instructor/course_list.html')
+@instructor_required
+def instructor_course_list():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    query = """
+    SELECT
+      c.id,
+      c.title AS course_name,
+      c.featured_image AS image,
+      cat.id AS category_id,
+      cat.name AS category_name,
+      i.id AS instructor_id,
+      i.first_name,
+      i.last_name
+    FROM courses c
+    LEFT JOIN categories cat ON c.categories_id = cat.id
+    LEFT JOIN instructor i ON c.instructor_id = i.id
+    ORDER BY c.id DESC
+    """
+    
+    cursor.execute(query)
+    courses_raw = cursor.fetchall()
+    cursor.close()
+    
+    courses = []
+    for row in courses_raw:
+        courses.append({
+            'id': row['id'],
+            'course_name': row['course_name'],
+            'image': row['image'],
+            'category': {
+                'id': row['category_id'],
+                'name': row['category_name']
+            },
+            'instructor': {
+                'id': row['instructor_id'],
+                'first_name': row['first_name'],
+                'last_name': row['last_name']
+            }
+        })
+    
+    return render_template('instructor/course_list.html', courses=courses)
+
+@app.route('/instructor/course/add', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_add_course(): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_add_course'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึง instructor (รวมชื่อ + นามสกุล)
+    # ควรดึงเฉพาะ instructor ที่ล็อกอินอยู่ หรือ instructor ที่เกี่ยวข้องกับหลักสูตรของเขา
+    # แต่สำหรับตอนนี้ ดึง instructor ทั้งหมดไปก่อนเพื่อไม่ให้เกิดข้อผิดพลาด
+    cursor.execute("SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM instructor")
+    instructors = cursor.fetchall()
+
+    # ดึง categories
+    cursor.execute("SELECT id, name AS name FROM categories")
+    categories = cursor.fetchall()
+
+    if request.method == 'POST':
+        course_name = request.form['course_name']
+        instructor_id = request.form['instructor_id'] # ควรเป็น ID ของ instructor ที่ล็อกอินอยู่
+        category_id = request.form['category_id']
+        description = request.form['description']
+        status = request.form['status'] # เช่น 'publish', 'draft'
+
+        # รูปภาพหลักสูตร
+        course_image = request.files.get('course_image')
+        image_filename = None
+        if course_image and allowed_file(course_image.filename, ALLOWED_IMAGE_EXTENSIONS):
+            image_filename = secure_filename(course_image.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER_IMAGES'], image_filename)
+            os.makedirs(image_path, exist_ok=True)
+            course_image.save(image_path)
+
+        # วิดีโอแนะนำ (ใช้ชื่อ 'featured_video' ให้ตรงกับฐานข้อมูล)
+        featured_video = request.files.get('featured_video')
+        video_filename = None
+        if featured_video and allowed_file(featured_video.filename, ALLOWED_VIDEO_EXTENSIONS):
+            video_filename = secure_filename(featured_video.filename)
+            video_path = os.path.join(app.config['UPLOAD_FOLDER_VIDEOS'], video_filename)
+            os.makedirs(video_path, exist_ok=True)
+            featured_video.save(video_path)
+
+        # บันทึกลงฐานข้อมูล
+        cursor.execute("""
+            INSERT INTO courses (title, instructor_id, categories_id, description, featured_image, featured_video, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (course_name, instructor_id, category_id, description, image_filename, video_filename, status))
+
+        mysql.connection.commit()
+        cursor.close()
+
+        flash('เพิ่มหลักสูตรเรียบร้อยแล้ว', 'success')
+        return redirect(url_for('instructor_course_list')) # ✅ กลับไปหน้ารายการหลักสูตรของ Instructor
+
+    cursor.close()
+    # ✅ ใช้ template ของ Instructor
+    return render_template('instructor/add_course.html', instructors=instructors, categories=categories)
+
+@app.route('/instructor/course/edit/<int:course_id>', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_edit_course(course_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_edit_course'
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor) # ใช้ DictCursor เพื่อให้เข้าถึงข้อมูลด้วยชื่อคอลัมน์ได้
+
+    if request.method == 'POST':
+        course_name = request.form['course_name']
+        description = request.form['description']
+        instructor_id = request.form['instructor_id'] # ID ของผู้สอนที่เลือก
+        category_id = request.form['category_id']
+        status = request.form['status'] # 'publish' หรือ 'draft'
+
+        # รูปภาพหลักสูตร (ถ้ามีการอัปโหลดใหม่)
+        course_image_file = request.files.get('course_image')
+        image_filename = None # ค่าเริ่มต้น ถ้าไม่มีการอัปโหลดใหม่
+
+        # ดึงชื่อรูปภาพเดิมจาก DB ก่อน เพื่อใช้เป็นค่าเริ่มต้น
+        cur.execute("SELECT featured_image, featured_video FROM courses WHERE id = %s", (course_id,))
+        existing_course_data = cur.fetchone()
+        current_image = existing_course_data['featured_image'] if existing_course_data else None
+        current_video = existing_course_data['featured_video'] if existing_course_data else None
+
+        if course_image_file and allowed_file(course_image_file.filename, ALLOWED_IMAGE_EXTENSIONS):
+            filename = secure_filename(course_image_file.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER_IMAGES'], filename)
+            course_image_file.save(image_path)
+            image_filename = filename
+        else:
+            image_filename = current_image # ใช้รูปเดิมถ้าไม่อัปโหลดใหม่
+
+        # วิดีโอแนะนำ (ถ้ามีการอัปโหลดใหม่)
+        featured_video_file = request.files.get('featured_video')
+        video_filename = None # ค่าเริ่มต้น
+
+        if featured_video_file and allowed_file(featured_video_file.filename, ALLOWED_VIDEO_EXTENSIONS):
+            filename = secure_filename(featured_video_file.filename)
+            video_path = os.path.join(app.config['UPLOAD_FOLDER_VIDEOS'], filename)
+            featured_video_file.save(video_path)
+            video_filename = filename
+        else:
+            video_filename = current_video # ใช้วิดีโอเดิมถ้าไม่อัปโหลดใหม่
+
+
+        cur.execute("""
+            UPDATE courses SET
+                title = %s,
+                description = %s,
+                instructor_id = %s,
+                categories_id = %s,
+                status = %s,
+                featured_image = %s,
+                featured_video = %s
+            WHERE id = %s
+        """, (course_name, description, instructor_id, category_id, status, image_filename, video_filename, course_id))
+
+        mysql.connection.commit()
+        flash('แก้ไขข้อมูลหลักสูตรเรียบร้อยแล้ว', 'success')
+        cur.close()
+        return redirect(url_for('instructor_course_list')) # ✅ กลับไปหน้ารายการหลักสูตรของ Instructor
+
+    # สำหรับ GET request: ดึงข้อมูลหลักสูตรเดิมมาแสดงในฟอร์ม
+    cur.execute("SELECT * FROM courses WHERE id = %s", (course_id,))
+    course = cur.fetchone()
+
+    if not course:
+        flash('ไม่พบหลักสูตรนี้', 'danger')
+        cur.close()
+        return redirect(url_for('instructor_course_list')) # ถ้าหาไม่เจอ ให้กลับไปหน้ารายการหลักสูตร
+
+    # ดึง instructors (ต้องมี role instructor)
+    cur.execute("SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM instructor")
+    instructors = cur.fetchall()
+
+    # ดึง categories
+    cur.execute("SELECT id, name AS name FROM categories")
+    categories = cur.fetchall()
+
+    cur.close()
+    # ✅ ใช้ template ของ Instructor
+    return render_template('instructor/edit_course.html', course=course, instructors=instructors, categories=categories)
+
+@app.route('/instructor/course/delete/<int:course_id>', methods=['POST']) # URL สำหรับ Instructor และใช้ POST เท่านั้น
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_delete_course(course_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_delete_course'
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลหลักสูตรก่อน เพื่อให้รู้ชื่อไฟล์รูปภาพและวิดีโอ (ถ้ามี)
+    cur.execute("SELECT featured_image, featured_video FROM courses WHERE id = %s", (course_id,))
+    course = cur.fetchone()
+
+    # ลบไฟล์รูปภาพและวิดีโอ (ถ้ามี)
+    if course:
+        if course['featured_image']:
+            image_path = os.path.join(app.config['UPLOAD_FOLDER_IMAGES'], course['featured_image'])
+            try:
+                os.remove(image_path)
+            except FileNotFoundError:
+                print(f"File not found: {image_path}") # พิมพ์ข้อความถ้าหาไฟล์ไม่เจอ
+        if course['featured_video']:
+            video_path = os.path.join(app.config['UPLOAD_FOLDER_VIDEOS'], course['featured_video'])
+            try:
+                os.remove(video_path)
+            except FileNotFoundError:
+                print(f"File not found: {video_path}") # พิมพ์ข้อความถ้าหาไฟล์ไม่เจอ
+
+    # ลบหลักสูตรจากฐานข้อมูล
+    cur.execute("DELETE FROM courses WHERE id = %s", (course_id,))
+    mysql.connection.commit()
+
+    cur.close()
+    flash('ลบหลักสูตรเรียบร้อยแล้ว', 'success')
+    return redirect(url_for('instructor_course_list'))
+
+
+@app.route('/instructor/lesson/<int:course_id>')
+@instructor_required
+def instructor_lesson(course_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลหลักสูตร (course) เพื่อส่งไปแสดงใน template (เพื่อให้ lesson.course.course_name ในเทมเพลตใช้ได้)
+    cursor.execute("SELECT id, title FROM courses WHERE id = %s", (course_id,))
+    course_info = cursor.fetchone() # จะได้ข้อมูลคอร์สเป็น dictionary
+
+    if not course_info:
+        flash('ไม่พบหลักสูตรที่ระบุ', 'danger')
+        cursor.close()
+        return redirect(url_for('instructor_course_list')) # หรือหน้าที่เหมาะสม
+
+    # ดึงข้อมูลบทเรียน (lessons) ที่อยู่ในหลักสูตรนี้
+    cursor.execute("""
+    SELECT lesson_id, lesson_name, lesson_date, course_id
+    FROM lesson 
+    WHERE course_id = %s
+    ORDER BY lesson_date DESC
+    """, (course_id,))
+    lesson_data_raw = cursor.fetchall() # ข้อมูลดิบจาก DB เป็น list of dicts
+
+    lessons = []
+    # สร้าง Object สำหรับ course ที่เกี่ยวข้องกับ lesson เพื่อให้ lesson.course.course_name ใช้งานได้
+    # (เราจะใช้ course_info ตรงๆ สำหรับตัวแปร 'course' ที่ส่งไปเทมเพลต)
+    # และใช้ course_info['title'] สำหรับการสร้าง LessonForTemplate
+    
+    for row in lesson_data_raw: # row แต่ละตัวคือ dictionary
+        lesson_date = row['lesson_date']
+        if isinstance(lesson_date, str):
+            try:
+                lesson_date = datetime.strptime(lesson_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                lesson_date = None
+
+        # ✅ สร้าง LessonForTemplate object สำหรับแต่ละบทเรียน
+        lessons.append(LessonForTemplate(
+            lesson_id=row['lesson_id'],
+            lesson_name=row['lesson_name'],
+            course_id=row['course_id'],
+            course_name=course_info['title'] # ใช้ชื่อคอร์สจาก course_info ที่ดึงมา
+        ))
+
+    cursor.close()
+    # ✅ ส่ง course_info (ที่เป็น dictionary) และ lessons (list of LessonForTemplate objects) ไป
+    return render_template('instructor/lesson.html', course=course_info, lessons=lessons)
+
+
 
 @app.route('/user/dashboard')
 def user_dashboard():
