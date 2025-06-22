@@ -1,0 +1,23 @@
+{# templates/instructor/add_quiz_to_lesson.html #}
+{% extends "instructor/instructor_layout.html" %} {# ✅ ใช้ layout ของ Instructor #}
+
+{% block title %}เพิ่มแบบทดสอบให้บทเรียน{% endblock %}
+
+{% block content %}
+<h2>เพิ่มแบบทดสอบให้บทเรียน: {{ lesson.title }}</h2>
+
+<form method="POST" action="{{ url_for('instructor_add_quiz_to_lesson', lesson_id=lesson.lesson_id) }}"> {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
+  <div class="mb-3">
+    <label for="quiz_id" class="form-label">เลือกแบบทดสอบ</label>
+    <select id="quiz_id" name="quiz_id" class="form-select" required>
+      <option value="">-- เลือกแบบทดสอบ --</option>
+      {% for quiz in available_quizzes %}
+      <option value="{{ quiz.quiz_id }}">{{ quiz.quiz_name }} ({{ quiz.lesson_name or "ไม่ระบุบทเรียน" }})</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">เพิ่ม</button>
+  <a href="{{ url_for('instructor_quiz_and_video', lesson_id=lesson.lesson_id) }}" class="btn btn-secondary">ยกเลิก</a> {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
+</form>
+{% endblock %}

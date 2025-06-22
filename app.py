@@ -2128,6 +2128,356 @@ def instructor_lesson(course_id):
     # ✅ ส่ง course_info (ที่เป็น dictionary) และ lessons (list of LessonForTemplate objects) ไป
     return render_template('instructor/lesson.html', course=course_info, lessons=lessons)
 
+@app.route('/instructor/lesson/<int:lesson_id>/quiz_and_video', methods=['GET', 'POST']) # ✅ เปลี่ยน URL ให้เป็นของ instructor
+@instructor_required # ✅ ใช้ decorator สำหรับ Instructor
+def instructor_quiz_and_video(lesson_id): # ✅ เปลี่ยนชื่อฟังก์ชันเพื่อให้ไม่ซ้ำกับของ admin
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลบทเรียนหลัก
+    cursor.execute("SELECT * FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    if not lesson:
+        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        return redirect(url_for('instructor_dashboard')) # ✅ ชี้ไปที่ dashboard ของ instructor
+
+    # 1. ดึงข้อมูลแบบทดสอบ (Quizzes) ที่ผูกกับบทเรียนนี้
+    cursor.execute("""
+        SELECT
+            qv.video_id AS qv_id,
+            qv.lesson_id,
+            q.quiz_id,
+            q.quiz_name,
+            q.quiz_type,
+            q.quiz_date,
+            l.lesson_name
+        FROM quiz_video qv
+        INNER JOIN quiz q ON qv.quiz_id = q.quiz_id
+        INNER JOIN lesson l ON q.lesson_id = l.lesson_id
+        WHERE qv.lesson_id = %s AND qv.quiz_id IS NOT NULL
+        ORDER BY qv.video_id ASC
+    """, (lesson_id,))
+    quizzes_for_lesson = cursor.fetchall()
+
+    # 2. ดึงข้อมูลวิดีโอ (Videos) ที่ผูกกับบทเรียนนี้
+    cursor.execute("""
+        SELECT
+            qv.video_id AS video_id,
+            qv.lesson_id,
+            qv.title,
+            qv.youtube_link,
+            qv.description,
+            qv.time_duration,
+            qv.preview,
+            qv.video_image
+        FROM quiz_video qv
+        WHERE qv.lesson_id = %s AND qv.quiz_id IS NULL
+        ORDER BY qv.video_id ASC
+    """, (lesson_id,))
+    videos_for_lesson = cursor.fetchall()
+
+    cursor.close()
+
+    # ✅ เปลี่ยนไปใช้ template สำหรับ instructor
+    return render_template('instructor/quiz_and_video.html',
+                            lesson=lesson,
+                            quizzes=quizzes_for_lesson,
+                            videos=videos_for_lesson)
+    
+@app.route('/instructor/lesson/<int:lesson_id>/quiz/add', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_add_quiz_to_lesson(lesson_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_add_quiz_to_lesson'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลบทเรียนหลัก
+    cursor.execute("SELECT lesson_id, lesson_name FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson_data = cursor.fetchone()
+
+    if not lesson_data:
+        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        cursor.close()
+        return redirect(url_for('instructor_dashboard')) # ✅ ชี้ไปที่ dashboard ของ instructor
+
+    lesson_obj_for_template = type('Lesson', (object,), {
+        'title': lesson_data['lesson_name'],
+        'lesson_id': lesson_data['lesson_id']
+    })()
+
+    if request.method == 'POST':
+        selected_quiz_id = request.form.get('quiz_id')
+
+        if not selected_quiz_id:
+            flash('กรุณาเลือกแบบทดสอบ', 'danger')
+            cursor.close()
+            return redirect(url_for('instructor_add_quiz_to_lesson', lesson_id=lesson_id)) # ✅ ชี้ไปที่ instructor_add_quiz_to_lesson
+
+        # ตรวจสอบว่าแบบทดสอบนี้มีอยู่จริงหรือไม่
+        cursor.execute("SELECT quiz_name FROM quiz WHERE quiz_id = %s", (selected_quiz_id,))
+        quiz_info = cursor.fetchone()
+
+        if not quiz_info:
+            flash('ไม่พบแบบทดสอบที่เลือก', 'danger')
+            cursor.close()
+            return redirect(url_for('instructor_add_quiz_to_lesson', lesson_id=lesson_id)) # ✅ ชี้ไปที่ instructor_add_quiz_to_lesson
+
+        quiz_name_to_link = quiz_info['quiz_name']
+
+        # ตรวจสอบว่าแบบทดสอบนี้ผูกกับบทเรียนนี้อยู่แล้วหรือไม่
+        cursor.execute("""
+            SELECT * FROM quiz_video
+            WHERE lesson_id = %s AND quiz_id = %s
+        """, (lesson_id, selected_quiz_id))
+        existing_link = cursor.fetchone()
+
+        if existing_link:
+            flash('แบบทดสอบนี้ถูกเพิ่มในบทเรียนนี้แล้ว', 'warning')
+        else:
+            try:
+                cursor.execute("""
+                    INSERT INTO quiz_video (lesson_id, quiz_id, title)
+                    VALUES (%s, %s, %s)
+                """, (lesson_id, selected_quiz_id, quiz_name_to_link))
+                mysql.connection.commit()
+                flash('เพิ่มแบบทดสอบเข้าสู่บทเรียนสำเร็จ', 'success')
+            except Exception as e:
+                mysql.connection.rollback()
+                flash(f'เกิดข้อผิดพลาดในการเพิ่มแบบทดสอบ: {str(e)}', 'danger')
+        
+        cursor.close()
+        return redirect(url_for('instructor_quiz_and_video', lesson_id=lesson_id)) # ✅ ชี้ไปที่ instructor_quiz_and_video
+
+    # สำหรับ GET request: ดึงแบบทดสอบที่มีอยู่ทั้งหมดมาให้เลือก
+    cursor.execute("""
+        SELECT q.quiz_id, q.quiz_name, l.lesson_name
+        FROM quiz q
+        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
+        ORDER BY q.quiz_name ASC
+    """)
+    available_quizzes = cursor.fetchall()
+    
+    cursor.close()
+    return render_template('instructor/add_quiz_to_lesson.html', 
+                           lesson=lesson_obj_for_template, 
+                           available_quizzes=available_quizzes)
+    
+@app.route('/instructor/lesson/<int:lesson_id>/add_video', methods=['GET', 'POST'])
+@instructor_required
+def instructor_add_video(lesson_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute("SELECT lesson_id, lesson_name FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson = cursor.fetchone()
+
+    if not lesson:
+        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        cursor.close()
+        return redirect(url_for('instructor_dashboard'))
+
+    if request.method == 'POST':
+        # --- DEBUG: รับ POST Request ---
+        print(f"\n--- DEBUG: instructor_add_video - POST Request Received for Lesson ID: {lesson_id} ---")
+        print(f"DEBUG: Form Data: {request.form}")
+        print(f"DEBUG: Files Data: {request.files}")
+        # --- สิ้นสุด DEBUG ---
+
+        title = request.form.get('title', '').strip() # ใช้ .get() และ .strip() ให้ปลอดภัย
+        youtube_link = request.form.get('youtube_link', '').strip()
+        description = request.form.get('description', '').strip()
+        time_duration = request.form.get('time_duration', '').strip()
+        video_image = None
+
+        # ✅ เพิ่มการตรวจสอบข้อมูลเบื้องต้น
+        if not title:
+            flash('กรุณาระบุหัวข้อวิดีโอ', 'danger')
+            cursor.close()
+            return render_template('instructor/add_video.html', lesson=lesson)
+        if not youtube_link: # หรือตรวจสอบว่าเป็น URL ที่ถูกต้อง
+             flash('กรุณาระบุลิงก์ YouTube', 'danger')
+             cursor.close()
+             return render_template('instructor/add_video.html', lesson=lesson)
+
+
+        # อัปโหลดรูปภาพ (ถ้ามี)
+        if 'video_image' in request.files:
+            file = request.files['video_image']
+            if file and file.filename != '' and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                filename = secure_filename(file.filename)
+                upload_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER_VIDEO_IMAGES'])
+                os.makedirs(upload_path, exist_ok=True)
+                file.save(os.path.join(upload_path, filename))
+                video_image = filename
+                print(f"DEBUG: Video image uploaded: {video_image}")
+            elif file and file.filename == '':
+                print("DEBUG: No video image file selected.")
+            else:
+                flash('ไฟล์รูปภาพไม่ถูกต้อง', 'warning')
+                print("DEBUG: Invalid video image file.")
+        
+        # --- DEBUG: ข้อมูลที่จะบันทึก ---
+        print(f"DEBUG: Data to insert:")
+        print(f"DEBUG: Title: '{title}'")
+        print(f"DEBUG: YouTube Link: '{youtube_link}'")
+        print(f"DEBUG: Description: '{description}'")
+        print(f"DEBUG: Time Duration: '{time_duration}'")
+        print(f"DEBUG: Video Image: '{video_image}'")
+        print(f"DEBUG: Lesson ID: {lesson_id}")
+        # --- สิ้นสุด DEBUG ---
+
+        # บันทึกข้อมูลลงฐานข้อมูล
+        try:
+            cursor.execute("""
+                INSERT INTO quiz_video (title, youtube_link, description, time_duration, video_image, lesson_id, quiz_id)
+                VALUES (%s, %s, %s, %s, %s, %s, NULL)
+            """, (title, youtube_link, description, time_duration, video_image, lesson_id))
+            mysql.connection.commit()
+            flash('เพิ่มวิดีโอสำเร็จ', 'success')
+            print("DEBUG: Video saved to DB successfully!")
+            cursor.close()
+            return redirect(url_for('instructor_quiz_and_video', lesson_id=lesson_id))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการเพิ่มวิดีโอ: {str(e)}', 'danger')
+            print(f"ERROR: Database insertion failed: {e}") # พิมพ์ข้อผิดพลาดฐานข้อมูลเต็มๆ
+            cursor.close()
+            return render_template('instructor/add_video.html', lesson=lesson)
+
+
+    cursor.close()
+    return render_template('instructor/add_video.html', lesson=lesson)
+
+@app.route('/instructor/video/edit/<int:video_id>', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_edit_video(video_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_edit_video'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึงข้อมูลวิดีโอปัจจุบัน
+    cursor.execute("SELECT * FROM quiz_video WHERE video_id = %s", (video_id,))
+    video = cursor.fetchone()
+
+    if not video:
+        flash('ไม่พบวิดีโอที่ระบุ', 'danger')
+        cursor.close()
+        return redirect(url_for('instructor_dashboard')) # ✅ ชี้ไปที่ dashboard ของ instructor
+
+    # 2. เตรียมข้อมูลบทเรียนสำหรับเทมเพลต (สำคัญมาก)
+    lesson_id_from_video = video.get('lesson_id')
+    
+    # สร้างอ็อบเจกต์จำลอง lesson โดยมีค่าเริ่มต้นที่ปลอดภัย
+    TempLessonForTemplate = type('Lesson', (object,), {
+        'title': 'บทเรียนไม่ทราบชื่อ',
+        'lesson_id': None
+    })
+
+    lesson_obj_for_template = TempLessonForTemplate()
+
+    if lesson_id_from_video:
+        cursor.execute("SELECT lesson_id, lesson_name FROM lesson WHERE lesson_id = %s", (lesson_id_from_video,))
+        lesson_data = cursor.fetchone()
+        if lesson_data:
+            lesson_obj_for_template.title = lesson_data['lesson_name']
+            lesson_obj_for_template.lesson_id = lesson_data['lesson_id']
+        else:
+            lesson_obj_for_template.title = 'ไม่พบบทเรียน (ID: {})'.format(lesson_id_from_video)
+            lesson_obj_for_template.lesson_id = lesson_id_from_video
+    else:
+        lesson_obj_for_template.title = 'ไม่พบบทเรียนที่เชื่อมโยง'
+        lesson_obj_for_template.lesson_id = None
+
+
+    if request.method == 'POST':
+        title = request.form['title']
+        youtube_link = request.form['youtube_link']
+        description = request.form.get('description', '')
+        time_duration = request.form.get('time_duration', '')
+        
+        # จัดการการอัปโหลดรูปภาพใหม่ (โค้ดเดิมที่ถูกต้องแล้ว)
+        new_video_image = request.files.get('video_image')
+        filename = video.get('video_image') # ใช้ .get() เพื่อป้องกัน KeyError ถ้าไม่มีคอลัมน์นี้
+
+        if new_video_image and new_video_image.filename != '' and allowed_file(new_video_image.filename, ALLOWED_IMAGE_EXTENSIONS):
+            filename = secure_filename(new_video_image.filename)
+            upload_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER_VIDEO_IMAGES'])
+            os.makedirs(upload_path, exist_ok=True)
+            new_video_image.save(os.path.join(upload_path, filename))
+            # Optional: ลบรูปเก่าถ้าเปลี่ยนใหม่
+            if video.get('video_image') and os.path.exists(os.path.join(upload_path, video['video_image'])):
+                try: os.remove(os.path.join(upload_path, video['video_image']))
+                except Exception as e: print(f"ERROR: Could not delete old video image: {e}")
+        elif new_video_image and new_video_image.filename == '':
+            # ผู้ใช้เลือก "choose file" แต่ไม่ได้เลือกไฟล์ -> ใช้รูปเดิม
+            pass
+        # else: ถ้าไม่ส่งไฟล์มาและไม่มีไฟล์เดิม ก็เป็น None หรือค่าว่าง
+
+
+        # อัปเดตข้อมูลในฐานข้อมูล
+        try:
+            cursor.execute("""
+                UPDATE quiz_video
+                SET title=%s, youtube_link=%s, description=%s, time_duration=%s, video_image=%s
+                WHERE video_id=%s
+            """, (title, youtube_link, description, time_duration, filename, video_id))
+            mysql.connection.commit()
+            flash('แก้ไขวิดีโอเรียบร้อยแล้ว', 'success')
+            cursor.close()
+
+            # เปลี่ยนเส้นทางกลับไปที่หน้า quiz_and_video ของบทเรียนที่เกี่ยวข้อง
+            redirect_lesson_id = lesson_id_from_video if lesson_id_from_video is not None else lesson_obj_for_template.lesson_id
+            if redirect_lesson_id is None:
+                return redirect(url_for('instructor_dashboard')) # ✅ ชี้ไปที่ instructor_dashboard
+            else:
+                return redirect(url_for('instructor_quiz_and_video', lesson_id=redirect_lesson_id)) # ✅ ชี้ไปที่ instructor_quiz_and_video
+
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการบันทึก: {str(e)}', 'danger')
+            cursor.close()
+            return render_template('instructor/edit_video.html', video=video, lesson=lesson_obj_for_template)
+
+
+    cursor.close()
+    # ✅ ใช้ template ของ Instructor
+    return render_template('instructor/edit_video.html', video=video, lesson=lesson_obj_for_template)
+
+@app.route('/instructor/lesson_content/remove/<int:qv_entry_id>', methods=['POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_remove_lesson_content(qv_entry_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_remove_lesson_content'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    lesson_id_to_redirect = None
+
+    print(f"\n--- DEBUG: Entering instructor_remove_lesson_content for qv_entry_id: {qv_entry_id} ---")
+
+    try:
+        cursor.execute("SELECT lesson_id FROM quiz_video WHERE video_id = %s", (qv_entry_id,))
+        result = cursor.fetchone()
+        print(f"DEBUG: SELECT result for qv_entry_id {qv_entry_id}: {result}")
+
+        if result:
+            lesson_id_to_redirect = result['lesson_id']
+            print(f"DEBUG: Found lesson_id: {lesson_id_to_redirect}. Attempting DELETE.")
+            cursor.execute("DELETE FROM quiz_video WHERE video_id = %s", (qv_entry_id,))
+            mysql.connection.commit()
+            print("DEBUG: DELETE successful, commit done.")
+            flash('ลบเนื้อหาออกจากบทเรียนเรียบร้อยแล้ว', 'success')
+        else:
+            print(f"DEBUG: No entry found for qv_entry_id {qv_entry_id}. Flashing 'danger' and redirecting to instructor_dashboard.")
+            flash('ไม่พบรายการเนื้อหาที่ระบุเพื่อลบ', 'danger')
+            return redirect(url_for('instructor_dashboard')) # ✅ ชี้ไปที่ instructor_dashboard
+
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"ERROR: Exception during deletion: {e}")
+        flash(f'เกิดข้อผิดพลาดในการลบเนื้อหา: {e}', 'danger')
+    finally:
+        cursor.close()
+        print("DEBUG: Cursor closed.")
+
+    if lesson_id_to_redirect:
+        print(f"DEBUG: Redirecting to instructor_quiz_and_video for lesson_id: {lesson_id_to_redirect}")
+        return redirect(url_for('instructor_quiz_and_video', lesson_id=lesson_id_to_redirect)) # ✅ ชี้ไปที่ instructor_quiz_and_video
+    else:
+        print("DEBUG: Fallback redirect to instructor_dashboard (lesson_id_to_redirect was None).")
+        return redirect(url_for('instructor_dashboard'))
+
 
 
 @app.route('/user/dashboard')
