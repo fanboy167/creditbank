@@ -1,0 +1,78 @@
+{# templates/instructor/edit_lesson.html #}
+{% extends "instructor/instructor_layout.html" %} {# ✅ เปลี่ยน base layout เป็นของ Instructor #}
+
+{% block title %}แก้ไขบทเรียน{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">แก้ไขบทเรียน</h2>
+
+<div class="card p-4 bg-light shadow-sm">
+    <form method="POST">
+        {{ form.hidden_tag() }} {# สำคัญสำหรับการป้องกัน CSRF ด้วย Flask-WTF #}
+
+        <div class="mb-3">
+            <label for="course_name" class="form-label">คอร์ส:</label>
+            {# แสดงชื่อคอร์สเท่านั้น ไม่สามารถแก้ไขได้ที่นี่ #}
+            <input type="text" id="course_name" class="form-control" value="{{ lesson.course.course_name }}" readonly>
+        </div>
+
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control", placeholder="ชื่อบทเรียน") }}
+            {% if form.title.errors %}
+                <div class="text-danger">
+                    {% for error in form.title.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# ✅ เพิ่มฟิลด์เลือกหลักสูตร #}
+        <div class="mb-3">
+            {{ form.course_id.label(class="form-label") }}
+            {{ form.course_id(class="form-select", required=True) }}
+            {% if form.course_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.course_id.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# ✅ เพิ่มฟิลด์เลือกผู้สอน #}
+        <div class="mb-3">
+            {{ form.instructor_id.label(class="form-label") }}
+            {{ form.instructor_id(class="form-select", required=True) }}
+            {% if form.instructor_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.instructor_id.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.lesson_date.label(class="form-label") }}
+            {{ form.lesson_date(class="form-control", type="date") }} {# ใช้ type="date" สำหรับตัวเลือกวันที่ #}
+            {% if form.lesson_date.errors %}
+                <div class="text-danger">
+                    {% for error in form.lesson_date.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-save me-1"></i> บันทึกการแก้ไข
+        </button>
+        {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
+        <a href="{{ url_for('instructor_lesson', course_id=lesson.course.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> กลับ
+        </a>
+    </form>
+</div>
+{% endblock %}

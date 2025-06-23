@@ -2477,6 +2477,471 @@ def instructor_remove_lesson_content(qv_entry_id): # ✅ ชื่อฟัง�
     else:
         print("DEBUG: Fallback redirect to instructor_dashboard (lesson_id_to_redirect was None).")
         return redirect(url_for('instructor_dashboard'))
+    
+@app.route('/instructor/quiz/<int:lesson_id>') # ✅ เปลี่ยน URL ให้เป็นของ instructor
+@instructor_required # ✅ ใช้ decorator สำหรับ Instructor
+def instructor_quiz_list(lesson_id): # ✅ เปลี่ยนชื่อฟังก์ชันเพื่อให้ไม่ซ้ำกับของ admin
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT q.quiz_id, q.quiz_name, q.passing_percentage, q.quiz_date, q.quiz_type,
+               l.lesson_name,
+               (SELECT COUNT(*) FROM questions WHERE questions.quiz_id = q.quiz_id) AS question_count
+        FROM quiz q
+        JOIN lesson l ON q.lesson_id = l.lesson_id
+        WHERE q.lesson_id = %s
+        ORDER BY q.quiz_date DESC
+    """, (lesson_id,))
+    quizzes = cursor.fetchall()
+    cursor.close()
+    # ✅ เปลี่ยนไปใช้ template สำหรับ instructor
+    return render_template('instructor/quiz_list.html', quizzes=quizzes, lesson_id=lesson_id)
+
+@app.route('/instructor/quiz/<int:quiz_id>/questions')
+@instructor_required
+def instructor_quiz_questions(quiz_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # ดึงข้อมูลแบบทดสอบ
+    cursor.execute("SELECT quiz_id, quiz_name, lesson_id FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz = cursor.fetchone() # ✅ ตรงนี้ quiz จะถูกกำหนดค่า
+
+    if not quiz: # ถ้า quiz เป็น None (ไม่พบบททดสอบ)
+        flash('ไม่พบแบบทดสอบที่ระบุ', 'danger')
+        cursor.close()
+        # ✅ แก้ไขตรงนี้: ไม่สามารถใช้ quiz_data ได้
+        # ต้องพยายาม redirect ไปที่ instructor_dashboard หรือ instructor_course_list
+        return redirect(url_for('instructor_dashboard')) # fallback ไปที่ dashboard ของ Instructor
+
+    # ดึงคำถามทั้งหมดของแบบทดสอบนี้
+    questions = [] # กำหนดค่าเริ่มต้นเพื่อความปลอดภัย
+    cursor.execute("SELECT * FROM questions WHERE quiz_id = %s", (quiz_id,))
+    questions = cursor.fetchall()
+    cursor.close()
+
+    # ส่ง quiz (ที่เป็น dictionary) และ questions ไปยังเทมเพลต
+    return render_template('instructor/quiz_questions.html', quiz=quiz, questions=questions, lesson_id=quiz['lesson_id'])
+
+@app.route('/instructor/quiz/edit/<int:quiz_id>', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_edit_quiz(quiz_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_edit_quiz'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    form = QuizForm() # สร้างฟอร์มตั้งแต่ต้น
+
+    # ✅ ดึงรายการแบบทดสอบทั้งหมดมาใส่ใน Dropdown 'select_quiz_id' เสมอ
+    cursor.execute("""
+        SELECT q.quiz_id, q.quiz_name, l.lesson_name
+        FROM quiz q
+        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
+        ORDER BY q.quiz_name ASC
+    """)
+    all_quizzes_for_selection = cursor.fetchall()
+    form.select_quiz_id.choices = [(q['quiz_id'], f"{q['quiz_name']} (บทเรียน: {q['lesson_name'] or 'ไม่ระบุ'})") for q in all_quizzes_for_selection]
+    form.select_quiz_id.choices.insert(0, (0, '-- เลือกแบบทดสอบ --'))
+
+    # ✅ กำหนด choices สำหรับ quiz_type เสมอ
+    form.quiz_type.choices = [('Pre-test', 'Pre-test'), ('Post_test', 'Post-test')]
+
+    # ✅ ดึงรายการบทเรียนทั้งหมดมาเพื่อเติม choices ให้กับ form.lesson_id เสมอ
+    cursor.execute("SELECT lesson_id, lesson_name FROM lesson ORDER BY lesson_name ASC")
+    lessons_for_choices = cursor.fetchall()
+    form.lesson_id.choices = [(l['lesson_id'], l['lesson_name']) for l in lessons_for_choices]
+    form.lesson_id.choices.insert(0, (0, '-- เลือกบทเรียน --')) # เพิ่มตัวเลือกเริ่มต้น
+
+    
+    cursor.execute("SELECT * FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz_data = cursor.fetchone()
+
+    if not quiz_data:
+        flash('ไม่พบแบบทดสอบที่ระบุ', 'danger')
+        cursor.close()
+        return redirect(url_for('instructor_quiz_list', lesson_id=quiz_data.get('lesson_id', 0))) # หรือไป dashboard
+
+    # เติมข้อมูลลงในฟอร์มสำหรับการแก้ไข (เฉพาะเมื่อเป็น GET request)
+    if request.method == 'GET':
+        form.quiz_name.data = quiz_data.get('quiz_name')
+        form.quiz_type.data = quiz_data.get('quiz_type')
+        form.passing_percentage.data = quiz_data.get('passing_percentage')
+        form.lesson_id.data = quiz_data.get('lesson_id') # ป้อน lesson_id เดิมของแบบทดสอบ
+
+
+    # ดึงคำถามที่เกี่ยวข้องกับแบบทดสอบนี้
+    questions = [] # กำหนดค่าเริ่มต้นเพื่อความปลอดภัย
+    cursor.execute("SELECT * FROM questions WHERE quiz_id = %s", (quiz_id,))
+    questions = cursor.fetchall()
+
+
+    # สร้าง lesson_obj_for_template (เหมือนเดิม)
+    lesson_id_from_quiz = quiz_data.get('lesson_id')
+    lesson_obj_for_template = None
+    if lesson_id_from_quiz:
+        cursor.execute("SELECT lesson_id, lesson_name, course_id FROM lesson WHERE lesson_id = %s", (lesson_id_from_quiz,))
+        lesson_data = cursor.fetchone()
+        if lesson_data:
+            cursor.execute("SELECT title FROM courses WHERE id = %s", (lesson_data['course_id'],))
+            course_data = cursor.fetchone()
+            course_name_for_lesson = course_data['title'] if course_data else "ไม่ทราบชื่อคอร์ส"
+            lesson_obj_for_template = LessonForTemplate(lesson_data['lesson_id'], lesson_data['lesson_name'], lesson_data['course_id'], course_name_for_lesson)
+        else:
+            lesson_obj_for_template = LessonForTemplate(quiz_id, 'ไม่พบบทเรียน (ID: {})'.format(lesson_id_from_quiz), None, "ไม่ทราบชื่อคอร์ส")
+    else:
+        lesson_obj_for_template = LessonForTemplate(quiz_id, 'ไม่พบบทเรียนที่เชื่อมโยง', None, "ไม่ทราบชื่อคอร์ส")
+    
+    
+    if form.validate_on_submit(): # จะทำงานเมื่อ submit ฟอร์มแก้ไข
+        updated_quiz_name = form.quiz_name.data
+        updated_quiz_type = form.quiz_type.data
+        updated_passing_percentage = form.passing_percentage.data
+        updated_lesson_id = form.lesson_id.data
+
+        if updated_lesson_id == 0:
+            flash('กรุณาเลือกบทเรียนที่เกี่ยวข้อง', 'danger')
+            cursor.close()
+            return render_template('instructor/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form) # ส่ง selection_mode=False ด้วย
+
+        try:
+            cursor.execute("""
+                UPDATE quiz SET
+                    quiz_name = %s,
+                    quiz_type = %s,
+                    passing_percentage = %s,
+                    lesson_id = %s
+                WHERE quiz_id = %s
+            """, (updated_quiz_name, updated_quiz_type, updated_passing_percentage, updated_lesson_id, quiz_id))
+            
+            mysql.connection.commit()
+            flash('แก้ไขแบบทดสอบเรียบร้อยแล้ว!', 'success')
+            cursor.close()
+
+            if lesson_id_from_quiz is None:
+                return redirect(url_for('instructor_dashboard'))
+            else:
+                return redirect(url_for('instructor_quiz_and_video', lesson_id=lesson_id_from_quiz))
+
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการบันทึก: {str(e)}', 'danger')
+            cursor.close()
+            return render_template('instructor/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form) # ส่ง selection_mode=False ด้วย
+    
+    cursor.close()
+    return render_template('instructor/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form) # ส่ง selection_mode=False
+
+@app.route('/instructor/quiz/delete/<int:quiz_id>', methods=['POST']) # ✅ URL สำหรับ Instructor และใช้ POST เท่านั้น
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_delete_quiz(quiz_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_delete_quiz'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึง lesson_id ก่อนลบ เพื่อใช้ในการ redirect กลับ
+    # เนื่องจากเราต้องการ lesson_id เพื่อ redirect กลับไปหน้า quiz_and_video ของบทเรียนนั้น
+    # เราจึงดึงจากตาราง quiz เพราะ quiz มี lesson_id ผูกอยู่
+    cursor.execute("SELECT lesson_id FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz_info = cursor.fetchone()
+
+    if not quiz_info:
+        flash('ไม่พบแบบทดสอบนี้', 'danger')
+        cursor.close()
+        # หากไม่พบ quiz_id หรือ lesson_id ให้ redirect ไปที่ instructor_dashboard
+        return redirect(url_for('instructor_dashboard')) 
+
+    lesson_id_to_redirect = quiz_info['lesson_id']
+
+    try:
+        # 2. ลบคำถามทั้งหมดที่เกี่ยวข้องกับแบบทดสอบนี้ก่อน (ถ้ามีตาราง questions)
+        cursor.execute("DELETE FROM questions WHERE quiz_id = %s", (quiz_id,))
+        # 3. ลบ entry ของแบบทดสอบในตาราง quiz_video (ถ้ามี)
+        cursor.execute("DELETE FROM quiz_video WHERE quiz_id = %s", (quiz_id,))
+        # 4. ลบแบบทดสอบจากตาราง quiz
+        cursor.execute("DELETE FROM quiz WHERE quiz_id = %s", (quiz_id,))
+        
+        mysql.connection.commit()
+        flash('ลบแบบทดสอบเรียบร้อยแล้ว', 'success')
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f'เกิดข้อผิดพลาดในการลบแบบทดสอบ: {str(e)}', 'danger')
+    finally:
+        cursor.close()
+
+    # 5. เปลี่ยนเส้นทางกลับไปที่หน้ารายการแบบทดสอบของบทเรียนนั้นๆ
+    return redirect(url_for('instructor_quiz_list', lesson_id=lesson_id_to_redirect))
+
+@app.route('/instructor/quiz/<int:quiz_id>/questions/add', methods=['GET', 'POST']) # URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_add_question(quiz_id): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_add_question'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # ดึงข้อมูลแบบทดสอบ (เพื่อแสดงชื่อแบบทดสอบ)
+    cursor.execute("SELECT quiz_id, quiz_name, lesson_id FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz = cursor.fetchone()
+
+    if not quiz: # ถ้า quiz เป็น None (ไม่พบบททดสอบ)
+        flash('ไม่พบแบบทดสอบที่ระบุ', 'danger')
+        cursor.close()
+        # ✅ แก้ไขตรงนี้: ถ้าหา quiz ไม่เจอ ให้ redirect ไปที่ instructor_dashboard
+        # ไม่ต้องพยายามหา lesson_id เพราะ quiz อาจเป็น None
+        return redirect(url_for('instructor_dashboard')) 
+
+
+    if request.method == 'POST':
+        question_name = request.form['question_name']
+        choice_a = request.form['choice_a']
+        choice_b = request.form['choice_b']
+        choice_c = request.form['choice_c']
+        choice_d = request.form['choice_d']
+        correct_answer = request.form['correct_answer'].lower()
+        score = int(request.form['score'])
+
+        # ฟังก์ชันช่วยบันทึกรูปภาพ
+        def save_image(file_key):
+            if file_key in request.files:
+                file = request.files[file_key]
+                if file and file.filename != '' and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                    filename = secure_filename(file.filename)
+                    upload_path = os.path.join(current_app.root_path, app.config['UPLOAD_FOLDER_QUESTION_IMAGES'])
+                    os.makedirs(upload_path, exist_ok=True)
+                    file.save(os.path.join(upload_path, filename))
+                    return filename
+            return ''
+
+        question_image = save_image('question_image')
+        choice_a_image = save_image('choice_a_image')
+        choice_b_image = save_image('choice_b_image')
+        choice_c_image = save_image('choice_c_image')
+        choice_d_image = save_image('choice_d_image')
+
+        try:
+            cursor.execute("""
+                INSERT INTO questions (
+                    quiz_id, question_name, choice_a, choice_b, choice_c, choice_d,
+                    correct_answer, score,
+                    question_image, choice_a_image, choice_b_image, choice_c_image, choice_d_image
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                quiz_id, question_name, choice_a, choice_b, choice_c, choice_d,
+                correct_answer, score,
+                question_image, choice_a_image, choice_b_image, choice_c_image, choice_d_image
+            ))
+
+            mysql.connection.commit()
+            flash('เพิ่มคำถามเรียบร้อยแล้ว', 'success')
+            cursor.close()
+            return redirect(url_for('instructor_quiz_questions', quiz_id=quiz_id))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการเพิ่มคำถาม: {str(e)}', 'danger')
+            cursor.close()
+            # ส่ง quiz และ lesson_id กลับไปด้วยเพื่อให้ template แสดงผลได้
+            return render_template('instructor/add_question.html', quiz=quiz, lesson_id=quiz['lesson_id'])
+
+    cursor.close()
+    # ส่ง quiz และ lesson_id กลับไปด้วยเพื่อให้ template แสดงผลได้
+    return render_template('instructor/add_question.html', quiz=quiz, lesson_id=quiz['lesson_id'])
+
+
+
+# ✅ เพิ่มฟังก์ชันนี้สำหรับ Instructor (เพิ่มแบบทดสอบใหม่ทั้งหมด)
+@app.route('/instructor/quiz/add_new', methods=['GET', 'POST']) # ✅ URL สำหรับ Instructor (เปลี่ยนเป็น add_new เพื่อไม่ให้สับสน)
+@instructor_required # ✅ ใช้ decorator ของ Instructor
+def instructor_add_quiz(): # ✅ ชื่อฟังก์ชันนี้คือ endpoint 'instructor_add_quiz'
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    form = QuizForm() # ใช้ QuizForm ในการสร้างแบบทดสอบใหม่
+
+    # ดึงบทเรียนทั้งหมดมาแสดงใน dropdown ของ LessonForm
+    cursor.execute("SELECT lesson_id, lesson_name FROM lesson ORDER BY lesson_name ASC")
+    lessons_for_choices = cursor.fetchall()
+    form.lesson_id.choices = [(l['lesson_id'], l['lesson_name']) for l in lessons_for_choices]
+    form.lesson_id.choices.insert(0, (0, '-- เลือกบทเรียน --')) # เพิ่มตัวเลือกเริ่มต้น
+
+    # กำหนด choices สำหรับ quiz_type
+    form.quiz_type.choices = [
+        ('Pre-test', 'Pre-test'),
+        ('Post_test', 'Post-test')
+    ]
+
+    if form.validate_on_submit():
+        quiz_name = form.quiz_name.data
+        quiz_type = form.quiz_type.data
+        passing_percentage = form.passing_percentage.data
+        lesson_id_selected = form.lesson_id.data # รับ lesson_id จากฟอร์ม
+        quiz_date = datetime.now().date() # วันที่สร้างแบบทดสอบ
+
+        if lesson_id_selected == 0:
+            flash('กรุณาเลือกบทเรียนที่เกี่ยวข้อง', 'danger')
+            cursor.close()
+            return render_template('instructor/add_quiz.html', form=form)
+
+        try:
+            cursor.execute("""
+                INSERT INTO quiz (quiz_name, lesson_id, passing_percentage, quiz_date, quiz_type)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (quiz_name, lesson_id_selected, passing_percentage, quiz_date, quiz_type))
+            mysql.connection.commit()
+            flash('เพิ่มแบบทดสอบเรียบร้อยแล้ว', 'success')
+            cursor.close()
+            # Redirect ไปยังหน้ารายการแบบทดสอบของบทเรียนที่ถูกเลือก
+            return redirect(url_for('instructor_quiz_list', lesson_id=lesson_id_selected))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการเพิ่มแบบทดสอบ: {str(e)}', 'danger')
+            cursor.close()
+            return render_template('instructor/add_quiz.html', form=form)
+
+    cursor.close()
+    return render_template('instructor/add_quiz.html', form=form)
+
+@app.route('/instructor/add_lesson', methods=['GET', 'POST']) # ✅ URL สำหรับ Instructor (ไม่มี course_id ใน URL)
+@instructor_required # ✅ ใช้ decorator สำหรับ Instructor
+def instructor_add_lesson(): # ✅ เปลี่ยนชื่อฟังก์ชันเพื่อให้ไม่ซ้ำกับของ admin
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    form = LessonForm()
+
+    # ดึงหลักสูตรทั้งหมดที่ Instructor สามารถเลือกได้ (อาจจะกรองแค่หลักสูตรของ Instructor คนนั้นๆ)
+    # สำหรับตอนนี้ ดึงหลักสูตรทั้งหมดที่มีสถานะ "publish" เหมือนเดิม
+    cursor.execute('SELECT id, title FROM courses WHERE status = "publish" ORDER BY title ASC')
+    courses_data = cursor.fetchall()
+    form.course_id.choices = [(course['id'], course['title']) for course in courses_data]
+    form.course_id.choices.insert(0, (0, '-- เลือกหลักสูตร --'))
+
+    # ดึงผู้สอนทั้งหมด (ในอนาคตอาจจะกรองแค่ Instructor ที่ล็อกอินอยู่)
+    cursor.execute("SELECT id, CONCAT(first_name, ' ', last_name) AS full_name FROM instructor ORDER BY first_name ASC")
+    instructors_data = cursor.fetchall()
+    form.instructor_id.choices = [(ins['id'], ins['full_name']) for ins in instructors_data]
+    form.instructor_id.choices.insert(0, (0, '-- เลือกผู้สอน --'))
+
+    if form.validate_on_submit():
+        lesson_name = form.title.data
+        course_id = form.course_id.data
+        instructor_id = form.instructor_id.data
+        lesson_date = form.lesson_date.data if form.lesson_date.data else datetime.now().date()
+
+        if course_id == 0:
+            flash('กรุณาเลือกหลักสูตร', 'danger')
+            cursor.close()
+            # ✅ ต้องส่ง instructors_data และ courses_data กลับไปด้วย
+            return render_template('instructor/add_lesson.html', form=form, instructors=instructors_data, courses=courses_data)
+        if instructor_id == 0:
+            flash('กรุณาเลือกผู้สอน', 'danger')
+            cursor.close()
+            # ✅ ต้องส่ง instructors_data และ courses_data กลับไปด้วย
+            return render_template('instructor/add_lesson.html', form=form, instructors=instructors_data, courses=courses_data)
+
+        try:
+            cursor.execute(
+                'INSERT INTO lesson (lesson_name, course_id, instructor_id, lesson_date) VALUES (%s, %s, %s, %s)',
+                (lesson_name, course_id, instructor_id, lesson_date)
+            )
+            mysql.connection.commit()
+            flash('เพิ่มบทเรียนสำเร็จ', 'success')
+            cursor.close()
+            # ✅ Redirect ไปยังหน้ารายการบทเรียนของหลักสูตรที่เพิ่ม
+            return redirect(url_for('instructor_lesson', course_id=course_id))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"เกิดข้อผิดพลาดในการเพิ่มบทเรียน: {str(e)}", "danger")
+            cursor.close()
+            # ✅ ต้องส่ง instructors_data และ courses_data กลับไปด้วย
+            return render_template('instructor/add_lesson.html', form=form, instructors=instructors_data, courses=courses_data)
+
+    cursor.close()
+    # ✅ ส่ง instructors_data และ courses_data ไปให้เทมเพลต
+    return render_template('instructor/add_lesson.html', form=form, instructors=instructors_data, courses=courses_data)
+
+@app.route('/instructor/lesson/edit/<int:lesson_id>', methods=['GET', 'POST']) # ✅ URL สำหรับ Instructor
+@instructor_required # ✅ ใช้ decorator สำหรับ Instructor
+def instructor_edit_lesson(lesson_id): # ✅ เปลี่ยนชื่อฟังก์ชันเพื่อให้ไม่ซ้ำกับของ admin
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึงข้อมูลบทเรียน (จากตาราง 'lesson')
+    cursor.execute("SELECT lesson_id, lesson_name, lesson_date, course_id FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    lesson_data = cursor.fetchone()
+
+    if not lesson_data:
+        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        cursor.close()
+        # ✅ Redirect ไปที่ instructor_dashboard หรือ instructor_lesson list
+        return redirect(url_for('instructor_dashboard')) 
+
+    # 2. ดึงข้อมูลคอร์สที่เกี่ยวข้องเพื่อแสดงในเทมเพลต (lesson.course.course_name)
+    course_id = lesson_data['course_id']
+    cursor.execute("SELECT id, title FROM courses WHERE id = %s", (course_id,))
+    course_info = cursor.fetchone()
+    course_name_for_template = course_info['title'] if course_info else "ไม่ระบุคอร์ส"
+
+    # 3. สร้าง TempCourse และ TempLessonForTemplate objects เพื่อส่งให้เทมเพลต
+    #    เพื่อให้เทมเพลตสามารถเข้าถึง attribute ได้เหมือน Lesson Model
+    class TempCourse:
+        def __init__(self, name, id):
+            self.course_name = name
+            self.id = id
+
+    class TempLessonForTemplate:
+        def __init__(self, data, course_name, course_id):
+            self.id = data['lesson_id']
+            self.lesson_id = data['lesson_id']
+            self.title = data['lesson_name']
+            self.lesson_date = data.get('lesson_date')
+            self.course_id = course_id
+            self.course = TempCourse(course_name, course_id)
+
+    lesson_for_template = TempLessonForTemplate(lesson_data, course_name_for_template, course_id)
+
+    # 4. สร้างฟอร์ม LessonForm และป้อนข้อมูลเดิม
+    form_data = {
+        'title': lesson_data.get('lesson_name'),
+        'lesson_date': lesson_data.get('lesson_date'),
+        'course_id': lesson_data.get('course_id'), # จำเป็นถ้า LessonForm มี course_id
+        'instructor_id': lesson_data.get('instructor_id') # จำเป็นถ้า LessonForm มี instructor_id
+    }
+    form = LessonForm(data=form_data)
+
+    # ดึงข้อมูลสำหรับ Dropdown ใน LessonForm (ถ้ามี)
+    # เช่น courses_data และ instructors_data (ถ้า LessonForm มี course_id, instructor_id)
+    cursor.execute('SELECT id, title FROM courses WHERE status = "publish"')
+    courses_for_form = cursor.fetchall()
+    form.course_id.choices = [(c['id'], c['title']) for c in courses_for_form]
+    form.course_id.choices.insert(0, (0, '-- เลือกหลักสูตร --')) # ตัวเลือกเริ่มต้น
+    
+    cursor.execute("SELECT id, CONCAT(first_name, ' ', last_name) AS full_name FROM instructor")
+    instructors_for_form = cursor.fetchall()
+    form.instructor_id.choices = [(ins['id'], ins['full_name']) for ins in instructors_for_form]
+    form.instructor_id.choices.insert(0, (0, '-- เลือกผู้สอน --')) # ตัวเลือกเริ่มต้น
+
+
+    if form.validate_on_submit():
+        updated_title = form.title.data
+        updated_lesson_date = form.lesson_date.data
+        updated_course_id = form.course_id.data
+        updated_instructor_id = form.instructor_id.data
+
+        # ตรวจสอบค่า 0 สำหรับ Dropdown
+        if updated_course_id == 0:
+            flash('กรุณาเลือกหลักสูตร', 'danger')
+            cursor.close()
+            return render_template('instructor/edit_lesson.html', form=form, lesson=lesson_for_template)
+        if updated_instructor_id == 0:
+            flash('กรุณาเลือกผู้สอน', 'danger')
+            cursor.close()
+            return render_template('instructor/edit_lesson.html', form=form, lesson=lesson_for_template)
+
+
+        # 5. อัปเดตข้อมูลในฐานข้อมูล
+        cursor.execute("""
+            UPDATE lesson SET
+                lesson_name = %s,
+                lesson_date = %s,
+                course_id = %s,       {# ✅ เพิ่ม course_id ใน UPDATE #}
+                instructor_id = %s    {# ✅ เพิ่ม instructor_id ใน UPDATE #}
+            WHERE lesson_id = %s
+        """, (updated_title, updated_lesson_date, updated_course_id, updated_instructor_id, lesson_id))
+        
+        mysql.connection.commit()
+        flash('บทเรียนได้รับการแก้ไขเรียบร้อยแล้ว!', 'success')
+        cursor.close()
+        # ✅ Redirect กลับไปที่ instructor_lesson ของ course ที่เกี่ยวข้อง
+        return redirect(url_for('instructor_lesson', course_id=updated_course_id))
+
+    cursor.close()
+    # ✅ ใช้ template สำหรับ Instructor
+    return render_template('instructor/edit_lesson.html', form=form, lesson=lesson_for_template)
 
 
 

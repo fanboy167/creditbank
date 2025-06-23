@@ -1,0 +1,69 @@
+{# templates/instructor/add_quiz.html #}
+{% extends "instructor/instructor_layout.html" %} {# ✅ ใช้ layout ของ Instructor #}
+
+{% block title %}เพิ่มแบบทดสอบใหม่{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">เพิ่มแบบทดสอบใหม่</h2>
+
+<div class="card p-4 bg-light shadow-sm">
+    <form method="POST" action="{{ url_for('instructor_add_quiz') }}"> {# ✅ ชี้ไปที่ Endpoint ของ Instructor #}
+        {{ form.hidden_tag() }} {# สำหรับ CSRF protection #}
+
+        <div class="mb-3">
+            {{ form.quiz_name.label(class="form-label") }}
+            {{ form.quiz_name(class="form-control", placeholder="ชื่อแบบทดสอบ", required=True) }}
+            {% if form.quiz_name.errors %}
+                <div class="text-danger">
+                    {% for error in form.quiz_name.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.quiz_type.label(class="form-label") }}
+            {{ form.quiz_type(class="form-select", required=True) }}
+            {% if form.quiz_type.errors %}
+                <div class="text-danger">
+                    {% for error in form.quiz_type.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.passing_percentage.label(class="form-label") }}
+            {{ form.passing_percentage(class="form-control", min="0", max="100", required=True) }}
+            {% if form.passing_percentage.errors %}
+                <div class="text-danger">
+                    {% for error in form.passing_percentage.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.lesson_id.label(class="form-label") }}
+            {{ form.lesson_id(class="form-select", required=True) }}
+            {% if form.lesson_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.lesson_id.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-save me-1"></i> บันทึกแบบทดสอบ
+        </button>
+        <a href="{{ url_for('instructor_course_list') }}" class="btn btn-secondary"> {# ✅ ชี้ไปที่หน้ารายการหลักสูตรของ Instructor #}
+            <i class="fas fa-arrow-left me-1"></i> ยกเลิก
+        </a>
+    </form>
+</div>
+{% endblock %}

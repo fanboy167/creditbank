@@ -1,0 +1,115 @@
+{% extends "instructor/instructor_layout.html" %} {# ✅ เปลี่ยน base layout เป็นของ Instructor #}
+
+{% block title %}คำถามในแบบทดสอบ {{ quiz.quiz_name }}{% endblock %} {# ✅ ใช้ quiz.quiz_name #}
+
+{% block content %}
+<h2 class="mb-4">คำถามในแบบทดสอบ: {{ quiz.quiz_name }}</h2>
+
+<div class="mb-3">
+  {# ✅ ปุ่มเพิ่มคำถามสำหรับ Instructor #}
+  <a href="{{ url_for('instructor_add_question', quiz_id=quiz.quiz_id) }}" class="btn btn-success">
+    <i class="fas fa-plus-circle me-1"></i> เพิ่มคำถาม
+  </a>
+</div>
+
+<style>
+  table.table {
+    background-color: #f9fbfd;
+  }
+  thead {
+    background-color: #9fd3f9;
+  }
+  thead th {
+    color: #154360;
+    vertical-align: middle;
+  }
+  tbody tr:nth-child(even) {
+    background-color: #e8f4fc;
+  }
+  .question-cell {
+    /* ใช้ flex เพื่อให้รูปกับข้อความเรียงแนวนอน */
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .question-cell img {
+    width: 100px;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  .answer-cell {
+    width: 15%;
+    text-align: right;
+    vertical-align: middle;
+    font-weight: 600;
+    color: #0b3c91;
+  }
+  .choices-list {
+    margin-top: 0.5rem;
+    padding-left: 1rem;
+  }
+  .choices-list li {
+    margin-bottom: 0.2rem;
+  }
+  .btn-sm {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.85rem;
+  }
+</style>
+
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th style="width:5%;">No.</th>
+      <th class="question-cell">คำถามและตัวเลือก</th>
+      <th class="answer-cell">คำตอบที่ถูกต้อง</th>
+      <th class="answer-cell">คะแนน</th>
+      <th style="width:10%;">จัดการ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for q in questions %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="question-cell">
+        {% if q.question_image %}
+          <img src="{{ url_for('static', filename='question_images/' + q.question_image) }}" alt="รูปคำถาม">
+        {% endif %}
+        <div>
+          <strong>{{ q.question_name }}</strong>
+          <ul class="choices-list">
+            <li>A. {{ q.choice_a }}</li>
+            <li>B. {{ q.choice_b }}</li>
+            <li>C. {{ q.choice_c }}</li>
+            <li>D. {{ q.choice_d }}</li>
+          </ul>
+        </div>
+      </td>
+      <td class="answer-cell text-nowrap text-end text-primary">
+        {{ q.correct_answer|upper }}
+      </td>
+      <td class="answer-cell text-nowrap text-end text-success">
+        {{ q.score }}
+      </td>
+      <td>
+        {# ✅ ปุ่มแก้ไขคำถามสำหรับ Instructor #}
+        <a href="{{ url_for('instructor_edit_question', question_id=q.question_id) }}" class="btn btn-warning btn-sm" title="แก้ไขคำถาม">
+          <i class="fas fa-edit"></i>
+        </a>
+        {# ✅ ปุ่มลบคำถามสำหรับ Instructor #}
+        <form action="{{ url_for('instructor_delete_question', question_id=q.question_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('ยืนยันการลบคำถามนี้?');">
+          <button type="submit" class="btn btn-danger btn-sm" title="ลบคำถาม">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# ✅ ปุ่มกลับสำหรับ Instructor #}
+<a href="{{ url_for('instructor_quiz_list', lesson_id=quiz.lesson_id) }}" class="btn btn-secondary">กลับ</a>
+
+{% endblock %}
