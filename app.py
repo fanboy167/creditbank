@@ -211,7 +211,201 @@ def about():
 
 @app.route('/course')
 def course():
-    return render_template('main/course.html')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # ดึงข้อมูลหลักสูตรทั้งหมด
+    query = """
+    SELECT
+      c.id,
+      c.title AS course_name,
+      c.description, # ดึง description ด้วย
+      c.featured_image, # ดึงชื่อไฟล์รูปภาพ
+      c.featured_video, # ดึงชื่อไฟล์วิดีโอ (ถ้ามี)
+      cat.id AS category_id,
+      cat.name AS category_name,
+      i.id AS instructor_id,
+      i.first_name,
+      i.last_name
+    FROM courses c
+    LEFT JOIN categories cat ON c.categories_id = cat.id
+    LEFT JOIN instructor i ON c.instructor_id = i.id
+    WHERE c.status = 'publish' # ✅ ดึงเฉพาะหลักสูตรที่เผยแพร่ (publish)
+    ORDER BY c.id DESC
+    """
+    
+    cursor.execute(query)
+    courses_raw = cursor.fetchall()
+    cursor.close()
+    
+    courses = []
+    for row in courses_raw:
+        # สร้างโครงสร้างข้อมูลให้คล้ายกับที่ Admin/Instructor ใช้งาน
+        courses.append({
+            'id': row['id'],
+            'course_name': row['course_name'],
+            'description': row['description'],
+            'featured_image': row['featured_image'],
+            'featured_video': row['featured_video'],
+            'category': {
+                'id': row['category_id'],
+                'name': row['category_name']
+            },
+            'instructor': {
+                'id': row['instructor_id'],
+                'first_name': row['first_name'],
+                'last_name': row['last_name']
+            },
+            # คุณอาจเพิ่มข้อมูลอื่นๆ เช่น จำนวนนักเรียน, คะแนนรีวิว ถ้ามีใน DB
+            'students_count': 0, # Placeholder
+            'duration_hours': 'N/A' # Placeholder
+        })
+    
+    return render_template('course/course.html', courses=courses)
+
+@app.route('/course/<int:course_id>')
+def course_detail(course_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึงข้อมูลหลักสูตรที่ระบุ
+    query = """
+    SELECT
+      c.id,
+      c.title AS course_name,
+      c.description,
+      c.featured_image,
+      c.featured_video,
+      cat.id AS category_id,
+      cat.name AS category_name,
+      i.id AS instructor_id,
+      i.first_name,
+      i.last_name,
+      q.quiz_id AS pre_test_quiz_id,
+      q.quiz_name AS pre_test_quiz_name,   -- ชื่อของ Pre-test (เปลี่ยนคอมเมนต์)
+      q.passing_percentage AS pre_test_passing_percentage -- เปอร์เซ็นต์ผ่านของ Pre-test (เปลี่ยนคอมเมนต์)
+    FROM courses c
+    LEFT JOIN categories cat ON c.categories_id = cat.id
+    LEFT JOIN instructor i ON c.instructor_id = i.id
+    LEFT JOIN lesson l ON c.id = l.course_id
+    LEFT JOIN quiz q ON l.lesson_id = q.lesson_id
+    WHERE c.id = %s AND c.status = 'publish' AND (q.quiz_type = 'Pre-test' OR q.quiz_id IS NULL)
+    LIMIT 1
+    """
+    cursor.execute(query, (course_id,))
+    course_data = cursor.fetchone()
+
+    if not course_data:
+        flash('ไม่พบหลักสูตรที่ระบุ หรือหลักสูตรยังไม่เผยแพร่', 'danger')
+        cursor.close()
+        return redirect(url_for('course'))
+
+    course = {
+        'id': course_data['id'],
+        'course_name': course_data['course_name'],
+        'description': course_data['description'],
+        'featured_image': course_data['featured_image'],
+        'featured_video': course_data['featured_video'],
+        'category': {
+            'id': course_data['category_id'],
+            'name': course_data['category_name']
+        },
+        'instructor': {
+            'id': course_data['instructor_id'],
+            'first_name': course_data['first_name'],
+            'last_name': course_data['last_name']
+        },
+        'pre_test_quiz_id': course_data['pre_test_quiz_id'],
+        'pre_test_quiz_name': course_data['pre_test_quiz_name'],
+        'pre_test_passing_percentage': course_data['pre_test_passing_percentage'],
+        'students_count': 0, 
+        'duration_hours': 'N/A'
+    }
+
+    # 2. ดึงบทเรียนทั้งหมดของหลักสูตรนี้ (เหมือนเดิม)
+    cursor.execute("""
+        SELECT lesson_id, lesson_name, lesson_date
+        FROM lesson
+        WHERE course_id = %s
+        ORDER BY lesson_date ASC
+    """, (course_id,))
+    lessons_in_course = cursor.fetchall()
+    
+    # 3. ตรวจสอบสถานะการลงทะเบียนและผลแบบทดสอบของผู้ใช้ปัจจุบัน
+    is_enrolled = False
+    user_pre_test_attempt = None
+    if current_user.is_authenticated:
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id))
+        if cursor.fetchone():
+            is_enrolled = True
+        
+        if is_enrolled and course['pre_test_quiz_id']:
+            cursor.execute("""
+                SELECT id, score, passed, attempt_date
+                FROM user_quiz_attempts
+                WHERE user_id = %s AND quiz_id = %s
+                ORDER BY attempt_date DESC LIMIT 1
+            """, (current_user.id, course['pre_test_quiz_id']))
+            user_pre_test_attempt = cursor.fetchone()
+
+    cursor.close()
+    return render_template('course/course_detail.html', 
+                           course=course, 
+                           lessons_in_course=lessons_in_course,
+                           is_enrolled=is_enrolled,
+                           user_pre_test_attempt=user_pre_test_attempt)
+
+@app.route('/course/join/<int:course_id>', methods=['POST'])
+@login_required # ต้องล็อกอินก่อน
+def join_course(course_id): 
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ตรวจสอบว่าหลักสูตรมีอยู่จริงหรือไม่
+    cursor.execute("SELECT id, title FROM courses WHERE id = %s AND status = 'publish'", (course_id,))
+    course = cursor.fetchone()
+
+    if not course:
+        flash('ไม่พบหลักสูตรที่ระบุ หรือหลักสูตรยังไม่เผยแพร่', 'danger')
+        cursor.close()
+        return redirect(url_for('course'))
+
+    # 2. ตรวจสอบว่าผู้ใช้คนนี้ (current_user.id) ได้ลงทะเบียนหลักสูตรนี้ไปแล้วหรือยัง
+    cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id))
+    already_registered = cursor.fetchone()
+
+    if already_registered:
+        flash(f"คุณได้ลงทะเบียนหลักสูตร '{course['title']}' นี้ไปแล้ว", 'info')
+        cursor.close()
+        return redirect(url_for('course_detail', course_id=course_id)) # ✅ เปลี่ยนไปกลับ course_detail
+
+    # 3. บันทึกการลงทะเบียนหลักสูตร
+    try:
+        cursor.execute("INSERT INTO registered_courses (user_id, course_id, registered_at) VALUES (%s, %s, %s)",
+                       (current_user.id, course_id, datetime.now()))
+        mysql.connection.commit()
+        flash(f"คุณได้ลงทะเบียนหลักสูตร '{course['title']}' สำเร็จแล้ว!", 'success')
+        cursor.close()
+        return redirect(url_for('course_detail', course_id=course_id)) # ✅ เปลี่ยนไปกลับ course_detail
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"เกิดข้อผิดพลาดในการลงทะเบียน: {str(e)}", 'danger')
+        cursor.close()
+        return redirect(url_for('course_detail', course_id=course_id))
+
+@app.route('/quiz/start/<int:quiz_id>', methods=['GET'])
+@login_required
+def start_quiz(quiz_id):
+    flash(f"คุณกำลังจะเริ่มทำแบบทดสอบ ID: {quiz_id} (ยังไม่ได้สร้างหน้าทำข้อสอบ)", "info")
+    # ✅ คุณจะต้องสร้างหน้าและ logic สำหรับทำแบบทดสอบจริงๆ ในอนาคต
+    return redirect(url_for('user_dashboard')) # redirect ไป user_dashboard ชั่วคราว
+
+# ✅ Placeholder Route สำหรับสร้างใบประกาศ
+@app.route('/course/certificate/<int:course_id>', methods=['GET'])
+@login_required
+def generate_certificate(course_id):
+    # ในอนาคต Logic ตรงนี้จะตรวจสอบว่าผู้ใช้ผ่านหลักสูตรจริงไหม แล้วค่อยสร้าง PDF/Image certificate
+    flash(f"กำลังจะออกใบประกาศสำหรับหลักสูตร ID: {course_id} (ฟังก์ชันยังไม่สมบูรณ์)", "info")
+    # ✅ คุณจะต้องสร้าง logic การสร้างใบประกาศจริงในอนาคต
+    return redirect(url_for('user_dashboard'))
 
 @app.route('/contact')
 def contact():
