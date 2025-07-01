@@ -49,7 +49,6 @@
                         <div class="col-md-6">
                             <p><i class="fa fa-tag text-primary me-2"></i>หมวดหมู่: {{ course.category.name }}</p>
                         </div>
-                        {# เพิ่มข้อมูลอื่นๆ เช่น คะแนน, จำนวนนักเรียน #}
                     </div>
 
                     <h4 class="mb-3">บทเรียนในหลักสูตรนี้</h4>
@@ -69,26 +68,35 @@
                     {% endif %}
 
                     <div class="mt-4 text-center">
-                        {# ✅ Logic การแสดงปุ่ม "เข้าร่วมหลักสูตร" หรือสถานะ "ลงทะเบียนแล้ว" #}
                         {% if is_enrolled %}
                             <button type="button" class="btn btn-success px-5 py-3" disabled>ลงทะเบียนแล้ว</button>
                             <div class="alert alert-info mt-3" role="alert">
                                 คุณลงทะเบียนหลักสูตรนี้เรียบร้อยแล้ว
                             </div>
 
-                            {# ✅ ส่วนของแบบทดสอบ Pre-test และผลลัพธ์ #}
+                            {# ส่วนของแบบทดสอบ Pre-test และผลลัพธ์ #}
                             {% if course.pre_test_quiz_id %}
                                 <hr>
                                 <h4>แบบทดสอบ Pre-test: {{ course.pre_test_quiz_name }}</h4>
                                 {% if user_pre_test_attempt %}
                                     <div class="alert alert-success" role="alert">
-                                        คุณทำแบบทดสอบแล้ว! คะแนน: {{ user_pre_test_attempt.score }}
-                                        {% if user_pre_test_attempt.passed %}
+                                        คุณทำแบบทดสอบแล้ว! คะแนน: {{ user_score_display }} / {{ total_score_possible_display }} ({{ "%.2f"|format(percentage_score_display) }}%)
+                                        {% if passed_display %}
                                             <span class="badge bg-success">ผ่านเกณฑ์</span>
-                                            <a href="{{ url_for('generate_certificate', course_id=course.id) }}" class="btn btn-primary btn-sm ms-2">ออกใบประกาศ</a> {# ✅ ปุ่มออกใบประกาศ #}
+                                            <a href="{{ url_for('generate_certificate', course_id=course.id) }}" class="btn btn-primary btn-sm ms-2">ออกใบประกาศ</a>
+                                            {# ✅ ปุ่ม "เริ่มเรียน" ถ้า Pre-test ผ่าน #}
+                                            {% if first_lesson_id %}
+                                                <a href="{{ url_for('user_view_lesson', lesson_id=first_lesson_id) }}" class="btn btn-info btn-sm ms-2">เริ่มเรียน</a>
+                                            {% else %}
+                                                <p class="text-muted mt-2">ยังไม่มีบทเรียนให้เริ่มเรียน</p>
+                                            {% endif %}
                                         {% else %}
                                             <span class="badge bg-danger">ไม่ผ่านเกณฑ์</span>
                                             <p class="text-muted">เกณฑ์ผ่าน: {{ course.pre_test_passing_percentage }}%</p>
+                                            {# ✅ ปุ่ม "เริ่มทำแบบทดสอบ" อีกครั้ง ถ้าไม่ผ่าน #}
+                                            <form action="{{ url_for('start_quiz', quiz_id=course.pre_test_quiz_id) }}" method="GET" style="display:inline;">
+                                                <button type="submit" class="btn btn-primary btn-sm ms-2">ทำแบบทดสอบอีกครั้ง</button>
+                                            </form>
                                         {% endif %}
                                     </div>
                                 {% else %}
@@ -104,6 +112,12 @@
                                 <div class="alert alert-secondary mt-3" role="alert">
                                     หลักสูตรนี้ไม่มีแบบทดสอบ Pre-test
                                 </div>
+                                {# ✅ ปุ่ม "เริ่มเรียน" ถ้าไม่มี Pre-test หรือไม่จำเป็นต้องทำ #}
+                                {% if first_lesson_id %}
+                                    <a href="{{ url_for('user_view_lesson', lesson_id=first_lesson_id) }}" class="btn btn-info btn-sm ms-2">เริ่มเรียน</a>
+                                {% else %}
+                                    <p class="text-muted mt-2">ยังไม่มีบทเรียนให้เริ่มเรียน</p>
+                                {% endif %}
                             {% endif %}
 
 
@@ -123,7 +137,6 @@
                     <ul class="list-unstyled mb-0">
                         <li><i class="fa fa-user text-primary me-2"></i>จำนวนนักเรียน: N/A</li>
                         <li><i class="fa fa-clock text-primary me-2"></i>ระยะเวลา: N/A</li>
-                        {# เพิ่มข้อมูลอื่นๆ #}
                     </ul>
                 </div>
             </div>

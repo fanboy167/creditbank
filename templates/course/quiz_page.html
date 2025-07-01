@@ -1,0 +1,103 @@
+{# templates/main/quiz_page.html #}
+{% extends 'base.html' %}
+{% block title %}ทำแบบทดสอบ: {{ quiz.quiz_name }}{% endblock %}
+{% block content %}
+{% include "component/header.html" %}
+
+<!-- Header Start -->
+<div class="container-fluid bg-primary py-5 mb-5 page-header">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 text-center">
+                <h1 class="display-3 text-white animated slideInDown">{{ quiz.quiz_name }}</h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb justify-content-center">
+                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course') }}">Courses</a></li>
+                        <li class="breadcrumb-item text-white active" aria-current="page">ทำแบบทดสอบ</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Header End -->
+
+<!-- Quiz Section Start -->
+<div class="container-xxl py-5">
+    <div class="container">
+        <div class="text-center wow fadeInUp" data-wow-delay="0.1s">
+            <h6 class="section-title bg-white text-center text-primary px-3">Quiz</h6>
+            <h1 class="mb-5">แบบทดสอบ: {{ quiz.quiz_name }}</h1>
+            <p class="lead">เกณฑ์ผ่าน: {{ quiz.passing_percentage }}%</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <form id="quizForm" method="POST" action="{{ url_for('submit_quiz', quiz_id=quiz.quiz_id) }}"> {# ✅ ฟอร์มสำหรับส่งคำตอบ #}
+                    <input type="hidden" name="quiz_id" value="{{ quiz.quiz_id }}">
+                    
+                    {% for question in questions %}
+                    <div class="card mb-4 shadow-sm wow fadeInUp" data-wow-delay="0.{{ loop.index }}s">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">คำถามที่ {{ loop.index }}: ({{ question.score }} คะแนน)</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                {% if question.question_image %}
+                                    <img src="{{ url_for('static', filename='question_images/' ~ question.question_image) }}" alt="รูปคำถาม" class="img-fluid rounded mb-2" style="max-height: 200px;">
+                                {% endif %}
+                                <strong>{{ question.question_name }}</strong>
+                            </p>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="question_{{ question.question_id }}" id="q{{ question.question_id }}a" value="a" required>
+                                <label class="form-check-label" for="q{{ question.question_id }}a">
+                                    A. {{ question.choice_a }}
+                                    {% if question.choice_a_image %}
+                                        <img src="{{ url_for('static', filename='question_images/' ~ question.choice_a_image) }}" alt="ตัวเลือก A" class="img-fluid ms-2" style="max-height: 50px;">
+                                    {% endif %}
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="question_{{ question.question_id }}" id="q{{ question.question_id }}b" value="b">
+                                <label class="form-check-label" for="q{{ question.question_id }}b">
+                                    B. {{ question.choice_b }}
+                                    {% if question.choice_b_image %}
+                                        <img src="{{ url_for('static', filename='question_images/' ~ question.choice_b_image) }}" alt="ตัวเลือก B" class="img-fluid ms-2" style="max-height: 50px;">
+                                    {% endif %}
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="question_{{ question.question_id }}" id="q{{ question.question_id }}c" value="c">
+                                <label class="form-check-label" for="q{{ question.question_id }}c">
+                                    C. {{ question.choice_c }}
+                                    {% if question.choice_c_image %}
+                                        <img src="{{ url_for('static', filename='question_images/' ~ question.choice_c_image) }}" alt="ตัวเลือก C" class="img-fluid ms-2" style="max-height: 50px;">
+                                    {% endif %}
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="question_{{ question.question_id }}" id="q{{ question.question_id }}d" value="d">
+                                <label class="form-check-label" for="q{{ question.question_id }}d">
+                                    D. {{ question.choice_d }}
+                                    {% if question.choice_d_image %}
+                                        <img src="{{ url_for('static', filename='question_images/' ~ question.choice_d_image) }}" alt="ตัวเลือก D" class="img-fluid ms-2" style="max-height: 50px;">
+                                    {% endif %}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary px-5 py-3">ส่งคำตอบ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Quiz Section End -->
+
+{% include "component/footer.html" %}
+{% endblock %}
