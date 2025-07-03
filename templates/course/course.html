@@ -1,3 +1,4 @@
+{# templates/main/course.html #}
 {% extends 'base.html' %}
 {% block title %}Courses{% endblock %}
 {% block content %}
@@ -11,7 +12,7 @@
                 <h1 class="display-3 text-white animated slideInDown">Courses</h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb justify-content-center">
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li> {# ✅ ลิงก์ไป home #}
+                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li>
                         <li class="breadcrumb-item"><a class="text-white" href="#">Pages</a></li>
                         <li class="breadcrumb-item text-white active" aria-current="page">Courses</li>
                     </ol>
@@ -30,37 +31,35 @@
             <h1 class="mb-5">Our Courses</h1>
         </div>
         <div class="row g-4 justify-content-center">
-            {% if courses %} {# ตรวจสอบว่ามีข้อมูลหลักสูตรหรือไม่ #}
+            {% if courses %}
                 {% for course in courses %}
-                <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.1s"> {# data-wow-delay อาจต้องเปลี่ยนตาม loop.index #}
+                <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.1s">
                     <div class="course-item bg-light">
                         <div class="position-relative overflow-hidden">
                             {% if course.featured_image %}
                                 <img class="img-fluid" src="{{ url_for('static', filename='course_images/' ~ course.featured_image) }}" alt="{{ course.course_name }}">
                             {% else %}
-                                <img class="img-fluid" src="{{ url_for('static', filename='img/default-course.png') }}" alt="ไม่มีรูปภาพ"> {# รูปภาพ Default #}
+                                <img class="img-fluid" src="{{ url_for('static', filename='img/default-course.png') }}" alt="ไม่มีรูปภาพ">
                             {% endif %}
                             <div class="w-100 d-flex justify-content-center position-absolute bottom-0 start-0 mb-4">
-    <a href="{{ url_for('course_detail', course_id=course.id) }}" class="flex-shrink-0 btn btn-sm btn-primary px-3 border-end" style="border-radius: 30px 0 0 30px;">Read More</a>
-    
-    {# ✅ เปลี่ยนจาก <a> เป็น <form> ที่ส่ง POST #}
-    <form action="{{ url_for('join_course', course_id=course.id) }}" method="POST" style="display:inline;">
-        <button type="submit" class="flex-shrink-0 btn btn-sm btn-primary px-3" style="border-radius: 0 30px 30px 0;">Join Now</button>
-    </form>
-</div>
+                                {% if course.id %}
+                                    {# ✅ ปุ่ม "Read More" ยังคงลิงก์ไป course_detail เหมือนเดิม #}
+                                    <a href="{{ url_for('course_detail', course_id=course.id) }}" class="flex-shrink-0 btn btn-sm btn-primary px-3 border-end" style="border-radius: 30px 0 0 30px;">Read More</a>
+                                    
+                                    {# ✅ เปลี่ยนปุ่ม "Join Now" ให้เป็น <a> tag ที่ลิงก์ไป course_detail #}
+                                    <a href="{{ url_for('course_detail', course_id=course.id) }}" class="flex-shrink-0 btn btn-sm btn-primary px-3" style="border-radius: 0 30px 30px 0;">Join Now</a>
+                                {% else %}
+                                    <span class="flex-shrink-0 btn btn-sm btn-secondary px-3" style="border-radius: 30px;">ไม่มีรายละเอียด</span>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="text-center p-4 pb-0">
-                            {# ✅ แสดงชื่อหลักสูตร #}
                             <h5 class="mb-4">{{ course.course_name }}</h5>
-                            {# ✅ แสดงคำอธิบายสั้นๆ (ถ้ามี) #}
                             <p class="text-muted small">{{ course.description[:100] ~ '...' if course.description and course.description|length > 100 else course.description }}</p>
                         </div>
                         <div class="d-flex border-top">
-                            {# ✅ แสดงชื่อผู้สอน #}
                             <small class="flex-fill text-center border-end py-2"><i class="fa fa-user-tie text-primary me-2"></i>{{ course.instructor.first_name }} {{ course.instructor.last_name }}</small>
-                            {# ✅ แสดงหมวดหมู่ #}
                             <small class="flex-fill text-center border-end py-2"><i class="fa fa-tag text-primary me-2"></i>{{ course.category.name or '-' }}</small>
-                            {# ✅ แสดงจำนวนนักเรียน (ถ้ามี) #}
                             <small class="flex-fill text-center py-2"><i class="fa fa-user text-primary me-2"></i>{{ course.students_count }} Students</small>
                         </div>
                     </div>
