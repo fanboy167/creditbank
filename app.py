@@ -403,8 +403,10 @@ def user_view_lesson(lesson_id):
         cursor.close()
         return redirect(url_for('user_dashboard')) # หรือกลับไปหน้า course list
 
-    # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่ (เหมือนเดิม)
-    cursor.execute("SELECT id, title, pre_test_quiz_id FROM courses WHERE id = %s", (lesson['course_id'],))
+    # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่
+    # ดึงข้อมูลหลักสูตรของบทเรียนนี้
+    # ✅ ลบ pre_test_quiz_id ออกจาก SELECT
+    cursor.execute("SELECT id, title FROM courses WHERE id = %s", (lesson['course_id'],)) 
     course_of_lesson = cursor.fetchone()
 
     if not course_of_lesson:
@@ -412,6 +414,7 @@ def user_view_lesson(lesson_id):
         cursor.close()
         return redirect(url_for('user_dashboard'))
 
+    # ตรวจสอบการลงทะเบียนหลักสูตร
     cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_of_lesson['id']))
     is_enrolled_in_course = cursor.fetchone()
 
@@ -420,23 +423,24 @@ def user_view_lesson(lesson_id):
         cursor.close()
         return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
 
-    # 3. ตรวจสอบว่าต้องทำ Pre-test และผ่านแล้วหรือไม่ (ถ้าหลักสูตรมี Pre-test) - เหมือนเดิม
-    if course_of_lesson['pre_test_quiz_id']:
-        cursor.execute("SELECT passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                       (current_user.id, course_of_lesson['pre_test_quiz_id']))
-        pre_test_result = cursor.fetchone()
+    # ✅ ลบ Logic การตรวจสอบ Pre-test ออกจากตรงนี้
+    # เพราะการตรวจสอบนี้เกิดขึ้นที่หน้า course_detail ก่อนที่จะเข้ามาหน้านี้ได้
+    # if course_of_lesson['pre_test_quiz_id']:
+    #     cursor.execute("SELECT passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
+    #                    (current_user.id, course_of_lesson['pre_test_quiz_id']))
+    #     pre_test_result = cursor.fetchone()
 
-        if not pre_test_result or not pre_test_result['passed']:
-            flash('คุณต้องทำแบบทดสอบ Pre-test ของหลักสูตรนี้ให้ผ่านก่อนจึงจะเข้าถึงบทเรียนได้', 'warning')
-            cursor.close()
-            return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
+    #     if not pre_test_result or not pre_test_result['passed']:
+    #         flash('คุณต้องทำแบบทดสอบ Pre-test ของหลักสูตรนี้ให้ผ่านก่อนจึงจะเข้าถึงบทเรียนได้', 'warning')
+    #         cursor.close()
+    #         return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
 
 
-    # 4. ดึงเนื้อหา (เฉพาะวิดีโอ) ที่ผูกกับบทเรียนนี้
+    # 4. ดึงเนื้อหา (วิดีโอ/แบบทดสอบ) ที่ผูกกับบทเรียนนี้
     cursor.execute("""
         SELECT video_id, title, youtube_link, description, time_duration, video_image, quiz_id
         FROM quiz_video
-        WHERE lesson_id = %s AND quiz_id IS NULL -- ✅ เพิ่มเงื่อนไข: quiz_id IS NULL เพื่อดึงเฉพาะวิดีโอ
+        WHERE lesson_id = %s AND quiz_id IS NULL
         ORDER BY video_id ASC
     """, (lesson_id,))
     lesson_contents = cursor.fetchall()

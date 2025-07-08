@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 14, 2025 at 08:45 PM
+-- Generation Time: Jul 03, 2025 at 01:35 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -64,7 +64,7 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`id`, `name`) VALUES
-(0, 'cybersecurity');
+(1, 'cybersecurity');
 
 -- --------------------------------------------------------
 
@@ -89,7 +89,7 @@ CREATE TABLE `courses` (
 --
 
 INSERT INTO `courses` (`id`, `featured_image`, `title`, `created_at`, `instructor_id`, `categories_id`, `description`, `status`, `featured_video`) VALUES
-(9, 'testy.jpg', 'test', '2025-06-10 18:00:18', 6, 0, 'Desty', 'publish', NULL);
+(12, 'testy.jpg', 'Information Systems Security', '2025-06-16 19:00:01', 6, 1, 'gwrgwregwrgwgwrgw', 'publish', NULL);
 
 -- --------------------------------------------------------
 
@@ -129,15 +129,16 @@ CREATE TABLE `lesson` (
   `lesson_name` varchar(255) NOT NULL,
   `lesson_date` datetime NOT NULL,
   `course_id` int(11) NOT NULL,
-  `instructor_id` int(11) NOT NULL
+  `instructor_id` int(11) NOT NULL,
+  `description` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `lesson`
 --
 
-INSERT INTO `lesson` (`lesson_id`, `lesson_name`, `lesson_date`, `course_id`, `instructor_id`) VALUES
-(0, 'test', '2025-06-11 16:29:52', 9, 6);
+INSERT INTO `lesson` (`lesson_id`, `lesson_name`, `lesson_date`, `course_id`, `instructor_id`, `description`) VALUES
+(6, 'บทที่1 แบบทดสอบพนฐานความมนคงของระบบสารสนเทศ', '2025-06-16 19:02:27', 12, 6, NULL);
 
 -- --------------------------------------------------------
 
@@ -167,9 +168,8 @@ CREATE TABLE `questions` (
 --
 
 INSERT INTO `questions` (`question_id`, `quiz_id`, `score`, `question_name`, `choice_a`, `choice_b`, `choice_c`, `choice_d`, `correct_answer`, `question_image`, `choice_a_image`, `choice_b_image`, `choice_c_image`, `choice_d_image`) VALUES
-(1, 3, 1, 'test', 'a', 'b', 'c', 'd', 'a', '', '', '', '', ''),
-(2, 4, 1, 'tesr', 'a', 'b', 'c', 'd', 'a', '', '', '', '', ''),
-(8, 4, 1, 'เไะเไพเไเ', 'นั้นสิ', 'b', 'เไำเำไ', 'โอเค', 'a', 'testy.jpg', 'logo.png', 'testy.jpg', 'logo.png', 'testy.jpg');
+(19, 42, 1, '1. ข้อใดคือองค์ประกอบของความมั ่นคงสารสนเทศ (CIA Triad)?', 'Control, Integrity, Accuracy ', 'Confidentiality, Integrity, Availability', 'Communication, Innovation, Access ', ' Compliance, Information, Audit ', 'b', '', '', '', '', ''),
+(20, 42, 1, '2. ข้อใดอธิบายคำว่า Threat ได้ถูกต้องที่สุด? ', ' ช่องโหว่ในระบบ', 'วิธีการที่ใช้ป้องกันข้อมูล', ' ความเสี่ยงทางการเงิน', 'สงทที่อาจก่อให้เกิดอันตรายต่อระบบ ', 'd', '', '', '', '', '');
 
 -- --------------------------------------------------------
 
@@ -191,9 +191,53 @@ CREATE TABLE `quiz` (
 --
 
 INSERT INTO `quiz` (`quiz_id`, `quiz_name`, `lesson_id`, `passing_percentage`, `quiz_date`, `quiz_type`) VALUES
-(1, 'secur', 0, 50, '2025-06-12 20:26:00', 'Pre-test'),
-(3, 'secur', 0, 40, '2025-06-14 17:05:37', 'Pre-test'),
-(4, 'rerew', 0, 40, '2025-06-14 17:47:01', 'Pre-test');
+(42, 'Pre-test', 6, 0, '2025-06-19 02:44:01', 'Pre-test');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `quiz_video`
+--
+
+CREATE TABLE `quiz_video` (
+  `video_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `youtube_link` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `time_duration` varchar(50) DEFAULT NULL,
+  `preview` text DEFAULT NULL,
+  `video_image` varchar(255) DEFAULT NULL,
+  `quiz_id` int(11) DEFAULT NULL,
+  `lesson_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `quiz_video`
+--
+
+INSERT INTO `quiz_video` (`video_id`, `title`, `youtube_link`, `description`, `time_duration`, `preview`, `video_image`, `quiz_id`, `lesson_id`) VALUES
+(62, 'Pre-test', '', NULL, NULL, NULL, NULL, 42, 6),
+(63, 'the toys', 'https://www.youtube.com/watch?v=L7R0I6FPPbw', 'the toys', '4', NULL, NULL, NULL, 6);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `registered_courses`
+--
+
+CREATE TABLE `registered_courses` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `course_id` int(11) NOT NULL,
+  `registered_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `registered_courses`
+--
+
+INSERT INTO `registered_courses` (`id`, `user_id`, `course_id`, `registered_at`) VALUES
+(24, 34, 12, '2025-07-03 18:32:58');
 
 -- --------------------------------------------------------
 
@@ -222,6 +266,50 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`id`, `first_name`, `last_name`, `email`, `username`, `id_card`, `gender`, `password`, `role`, `created_at`, `profile_image`, `tel`) VALUES
 (34, 'ubann', 'titu', 'qwer@gmail.com', 'user', '7777777754545', 'male', 'scrypt:32768:8:1$NUevnNNTHXSBUFvB$74d34d9e28b8030da208d104ba294a9c8e4c538b0385f874dcb2408e5eb49ce944735c159b00df4bd2a902b0289bb571a2fbbc37c6b57f82bf6029a6435bd253', 'user', '2025-06-09 09:41:39', 'default.jpg', '0987676789');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_lesson_progress`
+--
+
+CREATE TABLE `user_lesson_progress` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `video_id` int(11) NOT NULL,
+  `lesson_id` int(11) NOT NULL,
+  `is_completed` tinyint(1) DEFAULT 0,
+  `completed_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `user_lesson_progress`
+--
+
+INSERT INTO `user_lesson_progress` (`id`, `user_id`, `video_id`, `lesson_id`, `is_completed`, `completed_at`) VALUES
+(2, 34, 63, 6, 1, '2025-07-03 18:34:40');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_quiz_attempts`
+--
+
+CREATE TABLE `user_quiz_attempts` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `quiz_id` int(11) NOT NULL,
+  `score` int(11) DEFAULT 0,
+  `passed` tinyint(1) DEFAULT 0,
+  `attempt_date` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `user_quiz_attempts`
+--
+
+INSERT INTO `user_quiz_attempts` (`id`, `user_id`, `quiz_id`, `score`, `passed`, `attempt_date`) VALUES
+(16, 34, 42, 2, 1, '2025-07-03 18:34:47');
 
 --
 -- Indexes for dumped tables
@@ -274,6 +362,22 @@ ALTER TABLE `quiz`
   ADD KEY `fk_quiz_lesson` (`lesson_id`);
 
 --
+-- Indexes for table `quiz_video`
+--
+ALTER TABLE `quiz_video`
+  ADD PRIMARY KEY (`video_id`),
+  ADD KEY `fk_quiz_video_quiz` (`quiz_id`),
+  ADD KEY `fk_quiz_video_lesson` (`lesson_id`);
+
+--
+-- Indexes for table `registered_courses`
+--
+ALTER TABLE `registered_courses`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_id` (`user_id`,`course_id`),
+  ADD KEY `course_id` (`course_id`);
+
+--
 -- Indexes for table `user`
 --
 ALTER TABLE `user`
@@ -281,6 +385,23 @@ ALTER TABLE `user`
   ADD UNIQUE KEY `email` (`email`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `id_card` (`id_card`);
+
+--
+-- Indexes for table `user_lesson_progress`
+--
+ALTER TABLE `user_lesson_progress`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_id` (`user_id`,`video_id`),
+  ADD KEY `video_id` (`video_id`),
+  ADD KEY `lesson_id` (`lesson_id`);
+
+--
+-- Indexes for table `user_quiz_attempts`
+--
+ALTER TABLE `user_quiz_attempts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `quiz_id` (`quiz_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -296,7 +417,7 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `courses`
 --
 ALTER TABLE `courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `instructor`
@@ -305,22 +426,52 @@ ALTER TABLE `instructor`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
+-- AUTO_INCREMENT for table `lesson`
+--
+ALTER TABLE `lesson`
+  MODIFY `lesson_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
 -- AUTO_INCREMENT for table `questions`
 --
 ALTER TABLE `questions`
-  MODIFY `question_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `question_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `quiz`
 --
 ALTER TABLE `quiz`
-  MODIFY `quiz_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `quiz_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+
+--
+-- AUTO_INCREMENT for table `quiz_video`
+--
+ALTER TABLE `quiz_video`
+  MODIFY `video_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+
+--
+-- AUTO_INCREMENT for table `registered_courses`
+--
+ALTER TABLE `registered_courses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `user`
 --
 ALTER TABLE `user`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+
+--
+-- AUTO_INCREMENT for table `user_lesson_progress`
+--
+ALTER TABLE `user_lesson_progress`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `user_quiz_attempts`
+--
+ALTER TABLE `user_quiz_attempts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- Constraints for dumped tables
@@ -344,6 +495,35 @@ ALTER TABLE `questions`
 --
 ALTER TABLE `quiz`
   ADD CONSTRAINT `fk_quiz_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`lesson_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `quiz_video`
+--
+ALTER TABLE `quiz_video`
+  ADD CONSTRAINT `fk_quiz_video_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`lesson_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_quiz_video_quiz` FOREIGN KEY (`quiz_id`) REFERENCES `quiz` (`quiz_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Constraints for table `registered_courses`
+--
+ALTER TABLE `registered_courses`
+  ADD CONSTRAINT `registered_courses_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `registered_courses_ibfk_2` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `user_lesson_progress`
+--
+ALTER TABLE `user_lesson_progress`
+  ADD CONSTRAINT `user_lesson_progress_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_lesson_progress_ibfk_2` FOREIGN KEY (`video_id`) REFERENCES `quiz_video` (`video_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_lesson_progress_ibfk_3` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`lesson_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `user_quiz_attempts`
+--
+ALTER TABLE `user_quiz_attempts`
+  ADD CONSTRAINT `user_quiz_attempts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_quiz_attempts_ibfk_2` FOREIGN KEY (`quiz_id`) REFERENCES `quiz` (`quiz_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
