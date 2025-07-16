@@ -63,19 +63,20 @@ class LessonForTemplate: # คลาสสำหรับข้อมูลบ�
 
 # ---------------------------------------------------------------------------------------------
 
-class QuizForm(FlaskForm):
+class QuizForm(FlaskForm): # ✅ QuizForm สำหรับแก้ไขแบบทดสอบจริง
     quiz_name = StringField('ชื่อแบบทดสอบ', validators=[DataRequired(message="กรุณาระบุชื่อแบบทดสอบ"), Length(max=255)])
-    # quiz_type จะเป็น SelectField ที่กำหนด choices ใน route
     quiz_type = SelectField('ประเภทแบบทดสอบ', coerce=str, validators=[DataRequired(message="กรุณาเลือกประเภท")])
-    # passing_percentage เป็น IntegerField และกำหนดช่วงค่า
     passing_percentage = IntegerField('เปอร์เซ็นต์ผ่าน', validators=[DataRequired(message="กรุณาระบุเปอร์เซ็นต์ผ่าน"), NumberRange(min=0, max=100, message="ต้องอยู่ระหว่าง 0-100")])
-    select_quiz_id = SelectField('เลือกแบบทดสอบที่ต้องการแก้ไข', coerce=int)
     lesson_id = SelectField('บทเรียนที่เกี่ยวข้อง', coerce=int, validators=[DataRequired(message="กรุณาเลือกบทเรียน")])
+    # ✅ ลบ select_quiz_id ออกจาก QuizForm นี้แล้ว
+    
+class QuizSelectionForm(FlaskForm): # ✅ QuizSelectionForm สำหรับเลือกแบบทดสอบ
+    select_quiz_id = SelectField('เลือกแบบทดสอบที่ต้องการแก้ไข', coerce=int, validators=[DataRequired(message="กรุณาเลือกแบบทดสอบ")])
 # ---------------------------------------------------------------------------------------------
 
 class LessonForm(FlaskForm):
-    title = StringField('ชื่อบทเรียน', validators=[DataRequired(message="กรุณาระบุชื่อบทเรียน"), Length(max=255)])
-    description = TextAreaField('รายละเอียดบทเรียน', validators=[Optional()]) # ✅ เพิ่ม description กลับมา
+    title = StringField('ชื่อบทเรียน', validators=[DataRequired(message="กรุณาระบุชื่อบทเรียน")])
+    description = TextAreaField('รายละเอียดบทเรียน', validators=[Optional()]) # เพิ่ม description กลับมา
     lesson_date = DateField('วันที่สร้างบทเรียน', format='%Y-%m-%d', validators=[Optional()])
     course_id = SelectField('หลักสูตร', coerce=int, validators=[DataRequired(message="กรุณาเลือกหลักสูตร")])
     instructor_id = SelectField('ผู้สอน', coerce=int, validators=[DataRequired(message="กรุณาเลือกผู้สอน")])
@@ -2080,44 +2081,52 @@ def add_quiz():
 @admin_required
 def edit_quiz(quiz_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    form = QuizForm() # สร้างฟอร์มตั้งแต่ต้น
+    
+    # ✅ กำหนด choices สำหรับ quiz_type (ใช้กับ QuizForm)
+    quiz_type_choices = [('Pre-test', 'Pre-test'), ('Post_test', 'Post-test')]
 
-    # ✅ กำหนด choices สำหรับ select_quiz_id เสมอ
-    cursor.execute("""
-        SELECT q.quiz_id, q.quiz_name, l.lesson_name
-        FROM quiz q
-        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
-        ORDER BY q.quiz_name ASC
-    """)
-    all_quizzes_for_selection = cursor.fetchall()
-    form.select_quiz_id.choices = [(q['quiz_id'], f"{q['quiz_name']} (บทเรียน: {q['lesson_name'] or 'ไม่ระบุ'})") for q in all_quizzes_for_selection]
-    form.select_quiz_id.choices.insert(0, (0, '-- เลือกแบบทดสอบ --'))
-
-    # ✅ กำหนด choices สำหรับ quiz_type เสมอ
-    form.quiz_type.choices = [('Pre-test', 'Pre-test'), ('Post_test', 'Post-test')]
-
-    # ✅ ดึงรายการบทเรียนทั้งหมดมาเพื่อเติม choices ให้กับ form.lesson_id เสมอ
+    # ✅ ดึงรายการบทเรียนทั้งหมดมาเพื่อเติม choices ให้กับ lesson_id (ใช้กับ QuizForm)
     cursor.execute("SELECT lesson_id, lesson_name FROM lesson ORDER BY lesson_name ASC")
     lessons_for_choices = cursor.fetchall()
-    form.lesson_id.choices = [(l['lesson_id'], l['lesson_name']) for l in lessons_for_choices]
-    form.lesson_id.choices.insert(0, (0, '-- เลือกบทเรียน --')) # เพิ่มตัวเลือกเริ่มต้น
+    lesson_id_choices = [(l['lesson_id'], l['lesson_name']) for l in lessons_for_choices]
+    lesson_id_choices.insert(0, (0, '-- เลือกบทเรียน --'))
 
 
     # === Logic สำหรับหน้าเลือกแบบทดสอบ (ถ้า quiz_id เป็น 0 หรือไม่ได้ระบุ) ===
     if quiz_id == 0:
-        if request.method == 'POST':
-            selected_quiz_id = request.form.get('select_quiz_id')
-            if selected_quiz_id and int(selected_quiz_id) != 0:
-                return redirect(url_for('edit_quiz', quiz_id=selected_quiz_id))
-            else:
-                flash('กรุณาเลือกแบบทดสอบที่ต้องการแก้ไข', 'danger')
+        form = QuizSelectionForm() # ✅ ใช้ QuizSelectionForm
         
+        # ✅ กำหนด choices สำหรับ select_quiz_id
+        cursor.execute("""
+            SELECT q.quiz_id, q.quiz_name, l.lesson_name
+            FROM quiz q
+            LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
+            ORDER BY q.quiz_name ASC
+        """)
+        all_quizzes_for_selection = cursor.fetchall()
+        form.select_quiz_id.choices = [(q['quiz_id'], f"{q['quiz_name']} (บทเรียน: {q['lesson_name'] or 'ไม่ระบุ'})") for q in all_quizzes_for_selection]
+        form.select_quiz_id.choices.insert(0, (0, '-- เลือกแบบทดสอบ --'))
+
+        if request.method == 'POST':
+            if form.validate_on_submit(): # ✅ ตรวจสอบ validation ของ QuizSelectionForm
+                selected_quiz_id = form.select_quiz_id.data # ✅ รับค่าจาก form.select_quiz_id.data
+                if selected_quiz_id and int(selected_quiz_id) != 0:
+                    return redirect(url_for('edit_quiz', quiz_id=selected_quiz_id))
+                else:
+                    flash('กรุณาเลือกแบบทดสอบที่ต้องการแก้ไข', 'danger')
+            else:
+                flash('กรุณาเลือกแบบทดสอบที่ถูกต้อง', 'danger') # ข้อความทั่วไปสำหรับ selection form error
+                print(f"DEBUG: Quiz Selection Form Errors: {form.errors}") # Debugging selection form errors
+            
         cursor.close()
         return render_template('admin/edit_quiz.html', form=form, selection_mode=True)
 
 
     # === Logic สำหรับหน้าแก้ไขแบบทดสอบจริง (เมื่อ quiz_id ถูกส่งมา) ===
-    
+    form = QuizForm() # ✅ ใช้ QuizForm สำหรับโหมดแก้ไข
+    form.quiz_type.choices = quiz_type_choices # กำหนด choices
+    form.lesson_id.choices = lesson_id_choices # กำหนด choices
+
     cursor.execute("SELECT * FROM quiz WHERE quiz_id = %s", (quiz_id,))
     quiz_data = cursor.fetchone()
 
@@ -2135,7 +2144,7 @@ def edit_quiz(quiz_id):
 
 
     # ดึงคำถามที่เกี่ยวข้องกับแบบทดสอบนี้
-    questions = [] # กำหนดค่าเริ่มต้นเพื่อความปลอดภัย
+    questions = []
     cursor.execute("SELECT * FROM questions WHERE quiz_id = %s", (quiz_id,))
     questions = cursor.fetchall()
 
@@ -2158,6 +2167,7 @@ def edit_quiz(quiz_id):
     
     
     if form.validate_on_submit(): # จะทำงานเมื่อ submit ฟอร์มแก้ไข
+        print(f"\n--- DEBUG: Admin Edit Quiz - Form Validation PASSED for quiz_id: {quiz_id} ---")
         updated_quiz_name = form.quiz_name.data
         updated_quiz_type = form.quiz_type.data
         updated_passing_percentage = form.passing_percentage.data
@@ -2166,6 +2176,7 @@ def edit_quiz(quiz_id):
         if updated_lesson_id == 0:
             flash('กรุณาเลือกบทเรียนที่เกี่ยวข้อง', 'danger')
             cursor.close()
+            print(f"DEBUG: Validation failed: updated_lesson_id is 0.")
             return render_template('admin/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form, selection_mode=False)
 
         try:
@@ -2181,6 +2192,7 @@ def edit_quiz(quiz_id):
             mysql.connection.commit()
             flash('แก้ไขแบบทดสอบเรียบร้อยแล้ว!', 'success')
             cursor.close()
+            print(f"DEBUG: Database update successful for quiz_id: {quiz_id}.")
 
             if lesson_id_from_quiz is None:
                 return redirect(url_for('admin_dashboard'))
@@ -2191,11 +2203,16 @@ def edit_quiz(quiz_id):
             mysql.connection.rollback()
             flash(f'เกิดข้อผิดพลาดในการบันทึก: {str(e)}', 'danger')
             cursor.close()
+            print(f"ERROR: Database update failed for quiz_id {quiz_id}: {e}")
             return render_template('admin/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form, selection_mode=False)
-    
+    else: # ✅ เพิ่ม else block สำหรับ form.validate_on_submit()
+        print(f"\n--- DEBUG: Admin Edit Quiz - Form Validation FAILED for quiz_id: {quiz_id} ---")
+        print(f"DEBUG: Form Errors: {form.errors}") # ✅ พิมพ์ข้อผิดพลาดของฟอร์ม
+        # ฟังก์ชันจะเรนเดอร์เทมเพลตเดิม (admin/edit_quiz.html) โดยอัตโนมัติ
+        # และแสดงข้อผิดพลาดของฟอร์ม (ถ้าเทมเพลตมีการแสดงผล)
+
     cursor.close()
     return render_template('admin/edit_quiz.html', quiz=quiz_data, questions=questions, lesson=lesson_obj_for_template, form=form, selection_mode=False)
-
 
 @app.route('/admin/quiz/delete/<int:quiz_id>', methods=['POST'])
 @admin_required
