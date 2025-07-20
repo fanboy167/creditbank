@@ -14,7 +14,7 @@ from datetime import datetime
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, DateField, SelectField, IntegerField
 from wtforms.validators import DataRequired, URL, Optional, Length, NumberRange
-
+import random
 
 UPLOAD_FOLDER_IMAGES = 'static/course_images'
 UPLOAD_FOLDER_VIDEOS = 'static/course_videos'
@@ -497,33 +497,64 @@ def join_course(course_id):
 def user_learning_path(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลหลักสูตร
-    cursor.execute("SELECT id, title FROM courses WHERE id = %s AND status = 'publish'", (course_id,))
-    course_data_from_db = cursor.fetchone() # ✅ เปลี่ยนชื่อตัวแปรเป็น course_data_from_db
+    # 1. ดึงข้อมูลหลักสูตร (รวมถึง Pre-test quiz หลักสูตร)
+    query = """
+    SELECT
+      c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
+      cat.id AS category_id, cat.name AS category_name,
+      i.id AS instructor_id, i.first_name, i.last_name,
+      c.status,
+      
+      pre_q_course.quiz_id AS pre_test_quiz_id_course,
+      pre_q_course.quiz_name AS pre_test_quiz_name_course,
+      pre_q_course.passing_percentage AS pre_test_passing_percentage_course
+    FROM courses c
+    LEFT JOIN categories cat ON c.categories_id = cat.id
+    LEFT JOIN instructor i ON c.instructor_id = i.id
+    
+    LEFT JOIN lesson AS l_quiz ON l_quiz.course_id = c.id
+    LEFT JOIN quiz AS pre_q_course ON pre_q_course.lesson_id = l_quiz.lesson_id AND pre_q_course.quiz_type = 'Pre-test'
+    
+    WHERE c.id = %s AND c.status = 'publish'
+    GROUP BY c.id, c.title, c.description, c.featured_image, c.featured_video,
+             cat.id, cat.name, i.id, i.first_name, i.last_name, c.status,
+             pre_q_course.quiz_id, pre_q_course.quiz_name, pre_q_course.passing_percentage
+    LIMIT 1
+    """
+    try:
+        cursor.execute(query, (course_id,))
+        course_data = cursor.fetchone()
+    except Exception as e:
+        print(f"ERROR: SQL Error in user_learning_path course query: {e}")
+        flash(f"เกิดข้อผิดพลาดในการดึงข้อมูลหลักสูตรสำหรับเส้นทางการเรียนรู้: {str(e)}", "danger")
+        cursor.close()
+        return redirect(url_for('user_dashboard'))
 
-    if not course_data_from_db: # ✅ ใช้ course_data_from_db
+    if not course_data:
         flash('ไม่พบหลักสูตรที่ระบุ หรือหลักสูตรยังไม่เผยแพร่', 'danger')
         cursor.close()
         return redirect(url_for('user_dashboard'))
 
-    # ✅ สร้าง course object ที่จะส่งไปเทมเพลต
-    #    ให้แน่ใจว่าเป็น dictionary หรือ object ที่มี attribute 'id' และ 'title'
     course_for_template = {
-        'id': course_data_from_db['id'],
-        'title': course_data_from_db['title']
+        'id': course_data['id'], 'title': course_data['course_name'], 'description': course_data.get('description', ''),
+        'featured_image': course_data['featured_image'], 'featured_video': course_data['featured_video'],
+        'category': {'id': course_data['category_id'], 'name': course_data['category_name']},
+        'instructor': {'id': course_data['instructor_id'], 'first_name': course_data['first_name'], 'last_name': course_data['last_name']},
+        
+        'pre_test_quiz_id_course': course_data.get('pre_test_quiz_id_course'),
+        'pre_test_quiz_name_course': course_data.get('pre_test_quiz_name_course'),
+        'pre_test_passing_percentage_course': course_data.get('pre_test_passing_percentage_course'),
+        
+        'status': course_data.get('status')
     }
 
-    print(f"\n--- DEBUG: user_learning_path for course_id: {course_id} ---")
-    print(f"DEBUG: course_data_from_db: {course_data_from_db}")
-    print(f"DEBUG: course_for_template: {course_for_template} (Type: {type(course_for_template)})")
-
     # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่
-    cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,)) # ✅ ใช้ course_id
+    cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
     is_enrolled = cursor.fetchone()
     if not is_enrolled:
         flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
         cursor.close()
-        return redirect(url_for('course_detail', course_id=course_id)) # ✅ ใช้ course_id
+        return redirect(url_for('course_detail', course_id=course_id))
 
     # 3. ดึงบทเรียนทั้งหมดของหลักสูตรนี้
     cursor.execute("""
@@ -531,51 +562,41 @@ def user_learning_path(course_id):
         FROM lesson
         WHERE course_id = %s
         ORDER BY lesson_date ASC
-    """, (course_id,)) # ✅ ใช้ course_id
+    """, (course_id,))
     lessons_raw = cursor.fetchall()
 
     learning_path_data = []
     
+    # ✅ กำหนดน้ำหนักสำหรับแต่ละองค์ประกอบ
     VIDEO_WEIGHT = 1
-    PRE_TEST_WEIGHT = 1
-    POST_TEST_WEIGHT = 1
-    QUIZ_CONTENT_WEIGHT = 1
+    QUIZ_WEIGHT = 1 # ใช้สำหรับ Pre-test หลักสูตร, Post-test บทเรียน, Quiz Content
 
     total_possible_learning_points = 0
     user_earned_learning_points = 0
 
-    # 4. เพิ่ม Pre-test section (ถ้ามี)
-    cursor.execute("""
-        SELECT q.quiz_id, q.quiz_name, q.passing_percentage
-        FROM quiz q
-        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
-        WHERE l.course_id = %s AND q.quiz_type = 'Pre-test'
-        LIMIT 1
-    """, (course_id,)) # ✅ ใช้ course_id
-    pre_test_quiz = cursor.fetchone()
-
-    if pre_test_quiz:
-        total_possible_learning_points += PRE_TEST_WEIGHT
+    # 4. เพิ่ม Pre-test หลักสูตร (ถ้ามี) - แสดงผลแยกต่างหาก
+    if course_for_template['pre_test_quiz_id_course']:
+        total_possible_learning_points += QUIZ_WEIGHT
         cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                       (current_user.id, pre_test_quiz['quiz_id']))
-        pre_test_attempt = cursor.fetchone()
+                       (current_user.id, course_for_template['pre_test_quiz_id_course']))
+        pre_test_attempt_course = cursor.fetchone()
         
-        pre_test_status = "ยังไม่ทำ"
-        if pre_test_attempt:
-            pre_test_status = "ผ่าน" if pre_test_attempt['passed'] else "ไม่ผ่าน"
-            if pre_test_attempt['passed']:
-                user_earned_learning_points += PRE_TEST_WEIGHT
+        pre_test_status_course = "ยังไม่ทำ"
+        if pre_test_attempt_course:
+            pre_test_status_course = "ผ่าน" if pre_test_attempt_course['passed'] else "ไม่ผ่าน"
+            if pre_test_attempt_course['passed']:
+                user_earned_learning_points += QUIZ_WEIGHT
         
         learning_path_data.append({
-            'type': 'pre_test',
-            'quiz_id': pre_test_quiz['quiz_id'],
-            'title': f"แบบทดสอบก่อนเรียน (Pre-test): {pre_test_quiz['quiz_name']}",
-            'status': pre_test_status,
-            'passed': pre_test_attempt['passed'] if pre_test_attempt else False,
-            'score': pre_test_attempt['score'] if pre_test_attempt else 0
+            'type': 'pre_test_course',
+            'quiz_id': course_for_template['pre_test_quiz_id_course'],
+            'title': f"แบบทดสอบก่อนเรียน (Pre-test หลักสูตร): {course_for_template['pre_test_quiz_name_course']}",
+            'status': pre_test_status_course,
+            'passed': pre_test_attempt_course['passed'] if pre_test_attempt_course else False,
+            'score': pre_test_attempt_course['score'] if pre_test_attempt_course else 0
         })
 
-    # 5. วนลูปบทเรียนและเนื้อหา (วิดีโอ, แบบทดสอบอื่นๆ)
+    # 5. วนลูปบทเรียนและเนื้อหา (วิดีโอ, Post-test บทเรียน)
     for lesson_row in lessons_raw:
         learning_path_data.append({
             'type': 'lesson',
@@ -584,6 +605,7 @@ def user_learning_path(course_id):
             'description': lesson_row['description']
         })
         
+        # ดึงเนื้อหา (วิดีโอและแบบทดสอบ) ที่ผูกกับบทเรียนนี้
         cursor.execute("""
             SELECT video_id, title, youtube_link, description, time_duration, video_image, quiz_id
             FROM quiz_video
@@ -592,89 +614,76 @@ def user_learning_path(course_id):
         """, (lesson_row['lesson_id'],))
         contents_raw = cursor.fetchall()
 
+        # แยกวิดีโอ, Post-test บทเรียน
+        lesson_post_test = None
+        lesson_videos = []
+
         for content_row in contents_raw:
-            if content_row['quiz_id']: # ถ้าเป็นแบบทดสอบในเนื้อหา
-                total_possible_learning_points += QUIZ_CONTENT_WEIGHT
-                
-                cursor.execute("SELECT quiz_name, passing_percentage FROM quiz WHERE quiz_id = %s", (content_row['quiz_id'],))
+            if content_row['quiz_id']: # ถ้าเป็นแบบทดสอบ
+                # ดึงข้อมูล quiz เพิ่มเติม
+                cursor.execute("SELECT quiz_name, quiz_type, passing_percentage FROM quiz WHERE quiz_id = %s", (content_row['quiz_id'],))
                 quiz_info = cursor.fetchone()
-                
-                content_status = "ยังไม่ทำ"
-                content_passed = False
-                user_content_attempt = None
-                cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                               (current_user.id, content_row['quiz_id']))
-                user_content_attempt = cursor.fetchone()
-                if user_content_attempt:
-                    content_status = "ผ่าน" if user_content_attempt['passed'] else "ไม่ผ่าน"
-                    content_passed = user_content_attempt['passed']
-                    if user_content_attempt['passed']:
-                        user_earned_learning_points += QUIZ_CONTENT_WEIGHT
 
-                learning_path_data.append({
-                    'type': 'quiz_content',
-                    'quiz_id': content_row['quiz_id'],
-                    'title': f"แบบทดสอบ: {quiz_info['quiz_name'] if quiz_info else content_row['title']}",
-                    'status': content_status,
-                    'passed': content_passed,
-                    'score': user_content_attempt['score'] if user_content_attempt else 0,
-                    'passing_percentage': quiz_info['passing_percentage'] if quiz_info else 0
-                })
+                if quiz_info and quiz_info['quiz_type'] == 'Post_test': # ✅ เฉพาะ Post_test บทเรียน
+                    lesson_post_test = {
+                        'quiz_id': content_row['quiz_id'],
+                        'title': f"แบบทดสอบหลังบทเรียน: {quiz_info['quiz_name']}",
+                        'passing_percentage': quiz_info['passing_percentage']
+                    }
+                # else: แบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน จะไม่ถูกเพิ่มเข้า learning_path_data
+                #    pass # ไม่ต้องทำอะไร
+
             else: # ถ้าเป็นวิดีโอ
-                total_possible_learning_points += VIDEO_WEIGHT
-                
-                cursor.execute("SELECT is_completed FROM user_lesson_progress WHERE user_id = %s AND video_id = %s",
-                               (current_user.id, content_row['video_id']))
-                video_progress = cursor.fetchone()
-                
-                video_status = "ยังไม่ได้ดู"
-                if video_progress and video_progress['is_completed']:
-                    video_status = "ดูแล้ว"
-                    user_earned_learning_points += VIDEO_WEIGHT
+                lesson_videos.append(content_row) # เก็บวิดีโอไว้ใน list แยกต่างหาก
 
-                learning_path_data.append({
-                    'type': 'video_content',
-                    'video_id': content_row['video_id'],
-                    'lesson_id': lesson_row['lesson_id'],
-                    'title': f"วิดีโอ: {content_row['title']}",
-                    'status': video_status,
-                    'is_completed': video_progress['is_completed'] if video_progress else False,
-                    'youtube_link': content_row['youtube_link'],
-                    'description': content_row['description']
-                })
+        # เพิ่มวิดีโอของบทเรียน
+        for video_row in lesson_videos:
+            total_possible_learning_points += VIDEO_WEIGHT
+            cursor.execute("SELECT is_completed FROM user_lesson_progress WHERE user_id = %s AND video_id = %s",
+                           (current_user.id, video_row['video_id']))
+            video_progress = cursor.fetchone()
+            
+            video_status = "ยังไม่ได้ดู"
+            is_video_completed = video_progress['is_completed'] if video_progress and video_progress['is_completed'] is not None else False
+
+            if video_progress and is_video_completed:
+                video_status = "ดูแล้ว"
+                user_earned_learning_points += VIDEO_WEIGHT
+
+            learning_path_data.append({
+                'type': 'video_content',
+                'video_id': video_row['video_id'],
+                'lesson_id': lesson_row['lesson_id'],
+                'title': f"วิดีโอ: {video_row['title']}",
+                'status': video_status,
+                'is_completed': is_video_completed,
+                'youtube_link': video_row['youtube_link'],
+                'description': video_row['description']
+            })
+
+        # เพิ่ม Post-test บทเรียน (ถ้ามี)
+        if lesson_post_test:
+            total_possible_learning_points += QUIZ_WEIGHT
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
+                           (current_user.id, lesson_post_test['quiz_id']))
+            post_test_attempt_lesson = cursor.fetchone()
+            
+            post_test_status_lesson = "ยังไม่ทำ"
+            if post_test_attempt_lesson:
+                post_test_status_lesson = "ผ่าน" if post_test_attempt_lesson['passed'] else "ไม่ผ่าน"
+                if post_test_attempt_lesson['passed']:
+                    user_earned_learning_points += QUIZ_WEIGHT
+            
+            learning_path_data.append({
+                'type': 'post_test_lesson', # ประเภทใหม่สำหรับ Post-test บทเรียน
+                'quiz_id': lesson_post_test['quiz_id'],
+                'title': lesson_post_test['title'],
+                'status': post_test_status_lesson,
+                'passed': post_test_attempt_lesson['passed'] if post_test_attempt_lesson else False,
+                'score': post_test_attempt_lesson['score'] if post_test_attempt_lesson else 0,
+                'passing_percentage': lesson_post_test['passing_percentage']
+            })
     
-    # 6. เพิ่ม Post-test section (ถ้ามี)
-    cursor.execute("""
-        SELECT q.quiz_id, q.quiz_name, q.passing_percentage
-        FROM quiz q
-        LEFT JOIN lesson l ON q.lesson_id = l.lesson_id
-        WHERE l.course_id = %s AND q.quiz_type = 'Post_test'
-        LIMIT 1
-    """, (course_id,)) # ✅ ใช้ course_id
-    post_test_quiz = cursor.fetchone()
-
-    if post_test_quiz:
-        total_possible_learning_points += POST_TEST_WEIGHT
-        cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                       (current_user.id, post_test_quiz['quiz_id']))
-        post_test_attempt = cursor.fetchone()
-        
-        post_test_status = "ยังไม่ทำ"
-        if post_test_attempt:
-            post_test_status = "ผ่าน" if post_test_attempt['passed'] else "ไม่ผ่าน"
-            if post_test_attempt['passed']:
-                user_earned_learning_points += POST_TEST_WEIGHT
-        
-        learning_path_data.append({
-            'type': 'post_test',
-            'quiz_id': post_test_quiz['quiz_id'],
-            'title': f"แบบทดสอบหลังเรียน (Post-test): {post_test_quiz['quiz_name']}",
-            'status': post_test_status,
-            'passed': post_test_attempt['passed'] if post_test_attempt else False,
-            'score': post_test_attempt['score'] if post_test_attempt else 0
-        })
-
-    # 7. คำนวณเปอร์เซ็นต์ความคืบหน้ารวม
     if total_possible_learning_points > 0:
         overall_progress_percentage = (user_earned_learning_points / total_possible_learning_points) * 100
     else:
@@ -682,7 +691,7 @@ def user_learning_path(course_id):
 
     cursor.close()
     return render_template('course/learning_path.html', 
-                           course=course_for_template, # ✅ ส่ง course_for_template ไป
+                           course=course_for_template, 
                            learning_path_data=learning_path_data,
                            overall_progress_percentage=overall_progress_percentage)
     
@@ -772,6 +781,8 @@ def mark_video_as_watched_auto():
 def start_quiz(quiz_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    print(f"\n--- DEBUG: เข้าสู่ start_quiz สำหรับ quiz_id: {quiz_id} ---")
+
     # 1. ดึงข้อมูลแบบทดสอบ (Quiz)
     cursor.execute("SELECT quiz_id, quiz_name, lesson_id, passing_percentage FROM quiz WHERE quiz_id = %s", (quiz_id,))
     quiz = cursor.fetchone()
@@ -779,7 +790,11 @@ def start_quiz(quiz_id):
     if not quiz:
         flash('ไม่พบแบบทดสอบที่ระบุ', 'danger')
         cursor.close()
-        return redirect(url_for('user_dashboard')) # หรือกลับไปหน้า course list
+        print(f"DEBUG: ไม่พบบททดสอบ ID {quiz_id}. Redirect ไปที่ user_dashboard.")
+        return redirect(url_for('user_dashboard'))
+
+    print(f"DEBUG: พบข้อมูลแบบทดสอบ: {quiz}")
+    print(f"DEBUG: lesson_id ของแบบทดสอบ: {quiz.get('lesson_id')}")
 
     # 2. ดึงคำถามทั้งหมดของแบบทดสอบนี้
     cursor.execute("""
@@ -789,18 +804,28 @@ def start_quiz(quiz_id):
             score, correct_answer
         FROM questions 
         WHERE quiz_id = %s
-        ORDER BY question_id ASC
     """, (quiz_id,))
-    questions = cursor.fetchall()
+    
+    questions_raw = cursor.fetchall() # ✅ ดึงข้อมูลดิบมาเป็น tuple
+    questions = list(questions_raw) # ✅ แปลง tuple ให้เป็น list ก่อนสุ่ม
 
     if not questions:
         flash('ไม่พบคำถามสำหรับแบบทดสอบนี้', 'warning')
         cursor.close()
-        # ถ้าไม่มีคำถาม อาจจะ redirect กลับไปหน้า course_detail หรือ user_dashboard
-        return redirect(url_for('course_detail', course_id=quiz['lesson_id'])) # หากต้องการกลับไป course_detail ของบทเรียนนั้น
+        
+        redirect_course_id = quiz.get('lesson_id')
+        if redirect_course_id is None:
+            print(f"DEBUG: ไม่พบคำถามสำหรับแบบทดสอบ ID {quiz_id} และ lesson_id เป็น None. Redirect ไปที่ user_dashboard.")
+            return redirect(url_for('user_dashboard'))
+        else:
+            print(f"DEBUG: ไม่พบคำถามสำหรับแบบทดสอบ ID {quiz_id}. Redirect ไปที่ course_detail สำหรับ lesson_id: {redirect_course_id}.")
+            return redirect(url_for('course_detail', course_id=redirect_course_id))
 
+    # ✅ สุ่มลำดับคำถาม (ตอนนี้ questions เป็น list แล้ว)
+    random.shuffle(questions) 
+
+    print(f"DEBUG: พบ {len(questions)} คำถามสำหรับแบบทดสอบ ID {quiz_id}. กำลังเรนเดอร์หน้าทำแบบทดสอบ (คำถามถูกสุ่มแล้ว).")
     cursor.close()
-    # ✅ ส่งข้อมูลแบบทดสอบและคำถามทั้งหมดไปยังเทมเพลตใหม่
     return render_template('course/quiz_page.html', quiz=quiz, questions=questions)
 
 @app.route('/quiz/submit/<int:quiz_id>', methods=['POST'])

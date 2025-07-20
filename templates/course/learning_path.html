@@ -2,7 +2,7 @@
 {% extends 'base.html' %}
 {% block title %}เส้นทางการเรียนรู้: {{ course.title }}{% endblock %}
 {% block content %}
-
+{% include "component/header.html" %}
 
 <!-- Header Start -->
 <div class="container-fluid bg-primary py-5 mb-5 page-header">
@@ -14,8 +14,7 @@
                     <ol class="breadcrumb justify-content-center">
                         <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li>
                         <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course') }}">Courses</a></li>
-                        {# ✅ ใช้ course['id'] #}
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course_detail', course_id=course['id']) }}">{{ course.title }}</a></li> 
+                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course_detail', course_id=course.id) }}">{{ course.title }}</a></li>
                         <li class="breadcrumb-item text-white active" aria-current="page">เส้นทางการเรียนรู้</li>
                     </ol>
                 </nav>
@@ -45,7 +44,7 @@
 
                 <div class="list-group">
                     {% for item in learning_path_data %}
-                        {% if item.type == 'pre_test' %}
+                        {% if item.type == 'pre_test_course' %} {# ✅ Pre-test หลักสูตร #}
                             <div class="list-group-item list-group-item-action bg-light p-3 mb-2 rounded shadow-sm">
                                 <div class="d-flex w-100 justify-content-between align-items-center">
                                     <h5 class="mb-1 text-primary">
@@ -73,28 +72,28 @@
                                 <div class="mt-2">
                                     <a href="{{ url_for('user_view_lesson', lesson_id=item.lesson_id) }}" class="btn btn-sm btn-outline-primary">ดูวิดีโอ</a>
                                     {% if not item.is_completed %}
-                                        <form action="{{ url_for('mark_video_as_watched') }}" method="POST" style="display:inline;">
+                                        <form action="{{ url_for('mark_video_as_watched_auto') }}" method="POST" style="display:inline;">
                                             <input type="hidden" name="video_id" value="{{ item.video_id }}">
-                                            <input type="hidden" name="course_id" value="{{ course['id'] }}"> {# ✅ ใช้ course['id'] #}
+                                            <input type="hidden" name="course_id" value="{{ course.id }}">
                                             <input type="hidden" name="lesson_id" value="{{ item.lesson_id }}">
                                             <button type="submit" class="btn btn-sm btn-success ms-2">ทำเครื่องหมายว่าดูแล้ว</button>
                                         </form>
                                     {% endif %}
                                 </div>
                             </div>
-                        {% elif item.type == 'post_test' %}
-                            <div class="list-group-item list-group-item-action bg-light p-3 mb-2 rounded shadow-sm">
+                        {% elif item.type == 'post_test_lesson' %} {# ✅ Post-test บทเรียน #}
+                            <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3">
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <h5 class="mb-1 text-danger">
-                                        <i class="fas fa-clipboard-check me-2"></i>{{ item.title }}
-                                    </h5>
+                                    <h6 class="mb-1"><i class="fas fa-clipboard-check me-2 text-danger"></i>{{ item.title }}</h6>
                                     <span class="badge bg-{{ 'success' if item.passed else 'danger' if item.status == 'ไม่ผ่าน' else 'warning' }} rounded-pill">{{ item.status }}</span>
                                 </div>
-                                <p class="mb-1 text-muted small">คะแนน: {{ item.score }}</p>
+                                <small class="text-muted">เกณฑ์ผ่าน: {{ item.passing_percentage }}%</small>
                                 {% if item.status != 'ผ่าน' %}
-                                    <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="btn btn-sm btn-primary mt-2">เริ่มทำแบบทดสอบ</a>
+                                    <div class="mt-2">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">ทำแบบทดสอบ</button>
+                                    </div>
                                 {% endif %}
-                            </div>
+                            </a>
                         {% endif %}
                     {% endfor %}
                 </div>
@@ -104,5 +103,5 @@
 </div>
 <!-- Learning Path Section End -->
 
-
+{% include "component/footer.html" %}
 {% endblock %}
