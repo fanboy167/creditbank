@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, session, request, current_app
+from flask import Flask, render_template, redirect, url_for, flash, session, request, current_app, jsonify 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_session import Session
 from flask_mysqldb import MySQL
@@ -725,6 +725,47 @@ def mark_video_as_watched():
 
     # Redirect กลับไปหน้า Learning Path เดิม
     return redirect(url_for('user_learning_path', course_id=course_id))
+
+@app.route('/user/video/mark_watched_auto', methods=['POST'])
+@login_required
+def mark_video_as_watched_auto():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    user_id = current_user.id # ดึง user_id จาก Flask-Login
+    video_id = request.form.get('video_id', type=int)
+    lesson_id = request.form.get('lesson_id', type=int)
+    course_id = request.form.get('course_id', type=int)
+
+    # ตรวจสอบข้อมูลที่รับมา
+    if not user_id or not video_id or not lesson_id or not course_id:
+        print(f"ERROR: mark_video_as_watched_auto - Missing data: user_id={user_id}, video_id={video_id}, lesson_id={lesson_id}, course_id={course_id}")
+        return jsonify({'status': 'error', 'message': 'ข้อมูลไม่สมบูรณ์'}), 400
+
+    try:
+        # ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่ (เพื่อความปลอดภัย)
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (user_id, course_id))
+        is_enrolled = cursor.fetchone()
+        if not is_enrolled:
+            print(f"WARNING: User {user_id} not enrolled in course {course_id}. Cannot mark video {video_id} as watched.")
+            cursor.close()
+            return jsonify({'status': 'error', 'message': 'คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้'}), 403
+
+        # บันทึก/อัปเดตสถานะการดูวิดีโอ
+        cursor.execute("""
+            INSERT INTO user_lesson_progress (user_id, video_id, lesson_id, is_completed, completed_at)
+            VALUES (%s, %s, %s, TRUE, %s)
+            ON DUPLICATE KEY UPDATE is_completed = TRUE, completed_at = %s
+        """, (user_id, video_id, lesson_id, datetime.now(), datetime.now()))
+        
+        mysql.connection.commit()
+        print(f"DEBUG: Video {video_id} marked as watched by user {user_id} successfully.")
+        return jsonify({'status': 'success', 'message': 'ทำเครื่องหมายวิดีโอว่าดูแล้วเรียบร้อย!'})
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"ERROR: mark_video_as_watched_auto failed: {e}")
+        return jsonify({'status': 'error', 'message': f'เกิดข้อผิดพลาดในการทำเครื่องหมายวิดีโอ: {str(e)}'}), 500
+    finally:
+        cursor.close()
 
 @app.route('/quiz/start/<int:quiz_id>', methods=['GET'])
 @login_required
