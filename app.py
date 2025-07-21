@@ -18,6 +18,9 @@ import random
 
 UPLOAD_FOLDER_IMAGES = 'static/course_images'
 UPLOAD_FOLDER_VIDEOS = 'static/course_videos'
+UPLOAD_FOLDER_PROFILE_IMAGES = 'static/profile_images'
+UPLOAD_FOLDER_QUESTION_IMAGES = 'static/question_images'
+UPLOAD_FOLDER_VIDEO_IMAGES = 'static/video_images'
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv'}
@@ -25,18 +28,25 @@ ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv'}
 def allowed_file(filename, allowed_exts):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
 
-app = Flask(__name__)
+app = Flask(__name__) # ✅ app = Flask(__name__) ต้องอยู่ตรงนี้
 
+# ✅ กำหนดค่าเข้า app.config หลัง app = Flask(__name__)
 app.config['UPLOAD_FOLDER_IMAGES'] = UPLOAD_FOLDER_IMAGES
 app.config['UPLOAD_FOLDER_VIDEOS'] = UPLOAD_FOLDER_VIDEOS
+app.config['UPLOAD_FOLDER_PROFILE_IMAGES'] = UPLOAD_FOLDER_PROFILE_IMAGES
+app.config['UPLOAD_FOLDER_QUESTION_IMAGES'] = UPLOAD_FOLDER_QUESTION_IMAGES
+app.config['UPLOAD_FOLDER_VIDEO_IMAGES'] = UPLOAD_FOLDER_VIDEO_IMAGES
 
+# ✅ สร้างโฟลเดอร์หลังกำหนดใน app.config
 os.makedirs(app.config['UPLOAD_FOLDER_IMAGES'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_VIDEOS'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_PROFILE_IMAGES'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_QUESTION_IMAGES'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_VIDEO_IMAGES'], exist_ok=True)
 
-app.config['SESSION_TYPE'] = 'filesystem'  # เลือกวิธีการเก็บ session ใน filesystem
-
+app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
-app.secret_key = 'your secret key'
+app.secret_key = 'your_strong_secret_key_here'
 
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
@@ -93,6 +103,9 @@ class User(UserMixin):
         self.username = username
         self.email = email
         self.profile_image = profile_image if profile_image else "default.png"
+        self.profile_image_version = datetime.now().timestamp() # ✅ เพิ่ม version สำหรับ cache busting
+    def get_id(self):
+        return str(self.id)
 # ---------------------------------------------------------------------------------------------
 
 
@@ -108,6 +121,9 @@ class Admin(UserMixin):
         self.tel = tel
         self.gender = gender
         self.profile_image = profile_image if profile_image else "default.png"
+        self.profile_image_version = datetime.now().timestamp() # ✅ เพิ่ม version สำหรับ cache busting
+    def get_id(self):
+        return str(self.id)
 # ---------------------------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------------------------
@@ -122,6 +138,9 @@ class Instructor(UserMixin):
         self.tel = tel
         self.gender = gender
         self.profile_image = profile_image if profile_image else "default.png"
+        self.profile_image_version = datetime.now().timestamp() # ✅ เพิ่ม version สำหรับ cache busting
+    def get_id(self):
+        return str(self.id)
 # ---------------------------------------------------------------------------------------------
 
 
@@ -129,36 +148,108 @@ class Instructor(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    print(f"\n--- DEBUG: load_user for user_id: {user_id} ---")
 
-    # Query the 'user' table for a regular user
-    cursor.execute('SELECT * FROM user WHERE id = %s', (user_id,))
-    user_data = cursor.fetchone()
-    if user_data:
-        return User(id=user_data['id'], role=user_data['role'],
-                    first_name=user_data['first_name'], last_name=user_data['last_name'],
-                    username=user_data['username'], email=user_data['email'])
-
-    # Query the 'admin' table for an admin user
-    cursor.execute('SELECT * FROM admin WHERE id = %s', (user_id,))
+    # 1. ตรวจสอบใน Admin Table ก่อน
+    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM admin WHERE id = %s', (user_id,))
     admin_data = cursor.fetchone()
     if admin_data:
-        return Admin(id=admin_data['id'], role=admin_data['role'],
-        first_name=admin_data['first_name'], last_name=admin_data['last_name'],
-        username=admin_data['username'], email=admin_data['email'],
-        gender=admin_data['gender'])
+        db_role = str(admin_data.get('role', 'admin')).strip()
+        print(f"DEBUG: Found user in 'admin' table. Role: '{db_role}'")
+        admin_obj = Admin(
+            id=admin_data['id'], role=db_role,
+            first_name=admin_data['first_name'], last_name=admin_data['last_name'],
+            username=admin_data['username'], email=admin_data['email'],
+            tel=admin_data.get('tel'), gender=admin_data.get('gender'),
+            profile_image=admin_data.get('profile_image')
+        )
+        admin_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
+        return admin_obj
 
-    # Query the 'instructor' table for an instructor user
-    cursor.execute('SELECT * FROM instructor WHERE id = %s', (user_id,))
+    # 2. ตรวจสอบใน Instructor Table
+    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM instructor WHERE id = %s', (user_id,))
     instructor_data = cursor.fetchone()
     if instructor_data:
-        return Instructor(id=instructor_data['id'], role=instructor_data['role'],
-                           first_name=instructor_data['first_name'], last_name=instructor_data['last_name'],
-                           username=instructor_data['username'], email=instructor_data['email'], tel=instructor_data['tel'])
-
+        db_role = str(instructor_data.get('role', 'instructor')).strip()
+        print(f"DEBUG: Found user in 'instructor' table. Role: '{db_role}'")
+        instructor_obj = Instructor(
+            id=instructor_data['id'], role=db_role,
+            first_name=instructor_data['first_name'], last_name=instructor_data['last_name'],
+            username=instructor_data['username'], email=instructor_data['email'],
+            tel=instructor_data.get('tel'), gender=instructor_data.get('gender'),
+            profile_image=instructor_data.get('profile_image')
+        )
+        instructor_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
+        return instructor_obj
+    
+    # 3. ตรวจสอบใน User Table
+    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, id_card, gender, profile_image FROM user WHERE id = %s', (user_id,))
+    user_data = cursor.fetchone()
+    if user_data:
+        db_role = str(user_data.get('role', 'user')).strip()
+        print(f"DEBUG: Found user in 'user' table. Role: '{db_role}'")
+        user_obj = User(id=user_data['id'], role=db_role,
+                    first_name=user_data['first_name'], last_name=user_data['last_name'],
+                    username=user_data['username'], email=user_data['email'],
+                    profile_image=user_data.get('profile_image'))
+        user_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
+        return user_obj
+    
+    print(f"DEBUG: User ID {user_id} not found in any table.")
     cursor.close()
     return None
 
 # ---------------------------------------------------------------------------------------------
+
+
+def _update_current_user(user_id, role, table_name, select_query_columns):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
+    updated_user_data_from_db = cursor.fetchone()
+    cursor.close()
+
+    if not updated_user_data_from_db:
+        print(f"WARNING: _update_current_user: User ID {user_id} not found after update.")
+        return False
+
+    processed_role = str(updated_user_data_from_db.get('role', '')).strip()
+    
+    user_obj = None
+    if role == 'admin':
+        user_obj = Admin(
+            id=updated_user_data_from_db['id'], role=processed_role,
+            first_name=updated_user_data_from_db['first_name'], last_name=updated_user_data_from_db['last_name'],
+            username=updated_user_data_from_db['username'], email=updated_user_data_from_db['email'],
+            tel=updated_user_data_from_db.get('tel'), gender=updated_user_data_from_db.get('gender'),
+            profile_image=updated_user_data_from_db.get('profile_image')
+        )
+    elif role == 'instructor':
+        user_obj = Instructor(
+            id=updated_user_data_from_db['id'], role=processed_role,
+            first_name=updated_user_data_from_db['first_name'], last_name=updated_user_data_from_db['last_name'],
+            username=updated_user_data_from_db['username'], email=updated_user_data_from_db['email'],
+            tel=updated_user_data_from_db.get('tel'), gender=updated_user_data_from_db.get('gender'),
+            profile_image=updated_user_data_from_db.get('profile_image')
+        )
+    elif role == 'user':
+        user_obj = User(
+            id=updated_user_data_from_db['id'], role=processed_role,
+            first_name=updated_user_data_from_db['first_name'], last_name=updated_user_data_from_db['last_name'],
+            username=updated_user_data_from_db['username'], email=updated_user_data_from_db['email'],
+            id_card=updated_user_data_from_db.get('id_card'), gender=updated_user_data_from_db.get('gender'),
+            profile_image=updated_user_data_from_db.get('profile_image')
+        )
+    else:
+        return False
+
+    if user_obj: # ตรวจสอบว่าสร้าง user_obj ได้
+        user_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version ใหม่
+        login_user(user_obj, remember=True)
+        return True
+    return False
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -197,6 +288,13 @@ def instructor_required(f):
     return decorated_function
 
 
+
+# ---------------------------------------------------------------------------------------------
+
+@app.context_processor
+def inject_now():
+    from datetime import datetime # ต้อง import datetime ภายในฟังก์ชันนี้ หรือด้านบนสุดของไฟล์
+    return {'now': datetime.now}
 
 # ---------------------------------------------------------------------------------------------
 
@@ -497,28 +595,17 @@ def join_course(course_id):
 def user_learning_path(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลหลักสูตร (รวมถึง Pre-test quiz หลักสูตร)
+    # 1. ดึงข้อมูลหลักสูตร (ไม่มี Pre-test quiz หลักสูตรใน SELECT แล้ว)
     query = """
     SELECT
       c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
       cat.id AS category_id, cat.name AS category_name,
       i.id AS instructor_id, i.first_name, i.last_name,
-      c.status,
-      
-      pre_q_course.quiz_id AS pre_test_quiz_id_course,
-      pre_q_course.quiz_name AS pre_test_quiz_name_course,
-      pre_q_course.passing_percentage AS pre_test_passing_percentage_course
+      c.status
     FROM courses c
     LEFT JOIN categories cat ON c.categories_id = cat.id
     LEFT JOIN instructor i ON c.instructor_id = i.id
-    
-    LEFT JOIN lesson AS l_quiz ON l_quiz.course_id = c.id
-    LEFT JOIN quiz AS pre_q_course ON pre_q_course.lesson_id = l_quiz.lesson_id AND pre_q_course.quiz_type = 'Pre-test'
-    
     WHERE c.id = %s AND c.status = 'publish'
-    GROUP BY c.id, c.title, c.description, c.featured_image, c.featured_video,
-             cat.id, cat.name, i.id, i.first_name, i.last_name, c.status,
-             pre_q_course.quiz_id, pre_q_course.quiz_name, pre_q_course.passing_percentage
     LIMIT 1
     """
     try:
@@ -540,11 +627,6 @@ def user_learning_path(course_id):
         'featured_image': course_data['featured_image'], 'featured_video': course_data['featured_video'],
         'category': {'id': course_data['category_id'], 'name': course_data['category_name']},
         'instructor': {'id': course_data['instructor_id'], 'first_name': course_data['first_name'], 'last_name': course_data['last_name']},
-        
-        'pre_test_quiz_id_course': course_data.get('pre_test_quiz_id_course'),
-        'pre_test_quiz_name_course': course_data.get('pre_test_quiz_name_course'),
-        'pre_test_passing_percentage_course': course_data.get('pre_test_passing_percentage_course'),
-        
         'status': course_data.get('status')
     }
 
@@ -567,36 +649,16 @@ def user_learning_path(course_id):
 
     learning_path_data = []
     
-    # ✅ กำหนดน้ำหนักสำหรับแต่ละองค์ประกอบ
     VIDEO_WEIGHT = 1
-    QUIZ_WEIGHT = 1 # ใช้สำหรับ Pre-test หลักสูตร, Post-test บทเรียน, Quiz Content
+    QUIZ_WEIGHT = 1 # ใช้สำหรับ Pre-test บทเรียน, Post-test บทเรียน, Quiz Content
 
     total_possible_learning_points = 0
     user_earned_learning_points = 0
 
-    # 4. เพิ่ม Pre-test หลักสูตร (ถ้ามี) - แสดงผลแยกต่างหาก
-    if course_for_template['pre_test_quiz_id_course']:
-        total_possible_learning_points += QUIZ_WEIGHT
-        cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                       (current_user.id, course_for_template['pre_test_quiz_id_course']))
-        pre_test_attempt_course = cursor.fetchone()
-        
-        pre_test_status_course = "ยังไม่ทำ"
-        if pre_test_attempt_course:
-            pre_test_status_course = "ผ่าน" if pre_test_attempt_course['passed'] else "ไม่ผ่าน"
-            if pre_test_attempt_course['passed']:
-                user_earned_learning_points += QUIZ_WEIGHT
-        
-        learning_path_data.append({
-            'type': 'pre_test_course',
-            'quiz_id': course_for_template['pre_test_quiz_id_course'],
-            'title': f"แบบทดสอบก่อนเรียน (Pre-test หลักสูตร): {course_for_template['pre_test_quiz_name_course']}",
-            'status': pre_test_status_course,
-            'passed': pre_test_attempt_course['passed'] if pre_test_attempt_course else False,
-            'score': pre_test_attempt_course['score'] if pre_test_attempt_course else 0
-        })
+    # 4. ลบ Pre-test หลักสูตร (ไม่มีส่วนนี้แล้ว)
+    # if course_for_template['pre_test_quiz_id_course']: ...
 
-    # 5. วนลูปบทเรียนและเนื้อหา (วิดีโอ, Post-test บทเรียน)
+    # 5. วนลูปบทเรียนและเนื้อหา (Pre-test บทเรียน, วิดีโอ, Post-test บทเรียน)
     for lesson_row in lessons_raw:
         learning_path_data.append({
             'type': 'lesson',
@@ -614,28 +676,65 @@ def user_learning_path(course_id):
         """, (lesson_row['lesson_id'],))
         contents_raw = cursor.fetchall()
 
-        # แยกวิดีโอ, Post-test บทเรียน
-        lesson_post_test = None
+        # แยกวิดีโอ, Pre-test บทเรียน, Post-test บทเรียน
+        lesson_pre_test_quiz = None # เปลี่ยนชื่อตัวแปร
+        lesson_post_test_quiz = None # เปลี่ยนชื่อตัวแปร
         lesson_videos = []
+        lesson_other_quizzes = [] # สำหรับแบบทดสอบอื่นๆ ที่ไม่ใช่ pre/post
 
         for content_row in contents_raw:
             if content_row['quiz_id']: # ถ้าเป็นแบบทดสอบ
-                # ดึงข้อมูล quiz เพิ่มเติม
                 cursor.execute("SELECT quiz_name, quiz_type, passing_percentage FROM quiz WHERE quiz_id = %s", (content_row['quiz_id'],))
                 quiz_info = cursor.fetchone()
 
-                if quiz_info and quiz_info['quiz_type'] == 'Post_test': # ✅ เฉพาะ Post_test บทเรียน
-                    lesson_post_test = {
+                if quiz_info and quiz_info['quiz_type'] == 'Pre-test': # ✅ Pre-test บทเรียน
+                    lesson_pre_test_quiz = {
+                        'quiz_id': content_row['quiz_id'],
+                        'title': f"แบบทดสอบก่อนบทเรียน: {quiz_info['quiz_name']}",
+                        'passing_percentage': quiz_info['passing_percentage']
+                    }
+                elif quiz_info and quiz_info['quiz_type'] == 'Post_test': # ✅ Post-test บทเรียน
+                    lesson_post_test_quiz = {
                         'quiz_id': content_row['quiz_id'],
                         'title': f"แบบทดสอบหลังบทเรียน: {quiz_info['quiz_name']}",
                         'passing_percentage': quiz_info['passing_percentage']
                     }
-                # else: แบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน จะไม่ถูกเพิ่มเข้า learning_path_data
-                #    pass # ไม่ต้องทำอะไร
+                else: # แบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน
+                     lesson_other_quizzes.append({
+                        'quiz_id': content_row['quiz_id'],
+                        'title': f"แบบทดสอบ: {quiz_info['quiz_name'] if quiz_info else content_row['title']}",
+                        'passing_percentage': quiz_info['passing_percentage'] if quiz_info else 0
+                    })
 
             else: # ถ้าเป็นวิดีโอ
                 lesson_videos.append(content_row) # เก็บวิดีโอไว้ใน list แยกต่างหาก
 
+        # ✅ เพิ่ม Pre-test บทเรียน (ถ้ามี)
+        if lesson_pre_test_quiz:
+            total_possible_learning_points += QUIZ_WEIGHT
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
+                           (current_user.id, lesson_pre_test_quiz['quiz_id']))
+            pre_test_attempt_lesson = cursor.fetchone()
+            
+            pre_test_status_lesson = "ยังไม่ทำ"
+            pre_test_score = pre_test_attempt_lesson['score'] if pre_test_attempt_lesson and pre_test_attempt_lesson['score'] is not None else 0
+            pre_test_passed = pre_test_attempt_lesson['passed'] if pre_test_attempt_lesson and pre_test_attempt_lesson['passed'] is not None else False
+
+            if pre_test_attempt_lesson:
+                pre_test_status_lesson = "ผ่าน" if pre_test_passed else "ไม่ผ่าน"
+                if pre_test_passed:
+                    user_earned_learning_points += QUIZ_WEIGHT
+            
+            learning_path_data.append({
+                'type': 'pre_test_lesson', # ประเภทใหม่สำหรับ Pre-test บทเรียน
+                'quiz_id': lesson_pre_test_quiz['quiz_id'],
+                'title': lesson_pre_test_quiz['title'],
+                'status': pre_test_status_lesson,
+                'passed': pre_test_passed,
+                'score': pre_test_score,
+                'passing_percentage': lesson_pre_test_quiz['passing_percentage']
+            })
+        
         # เพิ่มวิดีโอของบทเรียน
         for video_row in lesson_videos:
             total_possible_learning_points += VIDEO_WEIGHT
@@ -662,28 +761,66 @@ def user_learning_path(course_id):
             })
 
         # เพิ่ม Post-test บทเรียน (ถ้ามี)
-        if lesson_post_test:
+        if lesson_post_test_quiz: # ✅ ใช้ lesson_post_test_quiz
             total_possible_learning_points += QUIZ_WEIGHT
             cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                           (current_user.id, lesson_post_test['quiz_id']))
+                           (current_user.id, lesson_post_test_quiz['quiz_id']))
             post_test_attempt_lesson = cursor.fetchone()
             
             post_test_status_lesson = "ยังไม่ทำ"
+            post_test_score = post_test_attempt_lesson['score'] if post_test_attempt_lesson and post_test_attempt_lesson['score'] is not None else 0
+            post_test_passed = post_test_attempt_lesson['passed'] if post_test_attempt_lesson and post_test_attempt_lesson['passed'] is not None else False
+
             if post_test_attempt_lesson:
-                post_test_status_lesson = "ผ่าน" if post_test_attempt_lesson['passed'] else "ไม่ผ่าน"
-                if post_test_attempt_lesson['passed']:
+                post_test_status_lesson = "ผ่าน" if post_test_passed else "ไม่ผ่าน"
+                if post_test_passed:
                     user_earned_learning_points += QUIZ_WEIGHT
             
             learning_path_data.append({
                 'type': 'post_test_lesson', # ประเภทใหม่สำหรับ Post-test บทเรียน
-                'quiz_id': lesson_post_test['quiz_id'],
-                'title': lesson_post_test['title'],
+                'quiz_id': lesson_post_test_quiz['quiz_id'],
+                'title': lesson_post_test_quiz['title'],
                 'status': post_test_status_lesson,
-                'passed': post_test_attempt_lesson['passed'] if post_test_attempt_lesson else False,
-                'score': post_test_attempt_lesson['score'] if post_test_attempt_lesson else 0,
-                'passing_percentage': lesson_post_test['passing_percentage']
+                'passed': post_test_passed,
+                'score': post_test_score,
+                'passing_percentage': lesson_post_test_quiz['passing_percentage']
             })
-    
+        
+        # ✅ เพิ่มแบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน
+        for other_quiz_row in lesson_other_quizzes:
+            total_possible_learning_points += QUIZ_WEIGHT # นับน้ำหนัก
+            
+            # ตรวจสอบผลแบบทดสอบของเนื้อหานั้นๆ
+            other_quiz_status = "ยังไม่ทำ"
+            other_quiz_passed = False
+            user_other_quiz_attempt = None
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
+                           (current_user.id, other_quiz_row['quiz_id']))
+            user_other_quiz_attempt = cursor.fetchone()
+            
+            other_quiz_score = user_other_quiz_attempt['score'] if user_other_quiz_attempt and user_other_quiz_attempt['score'] is not None else 0
+            other_quiz_passed = user_other_quiz_attempt['passed'] if user_other_quiz_attempt and user_other_quiz_attempt['passed'] is not None else False
+
+            if user_other_quiz_attempt:
+                other_quiz_status = "ผ่าน" if other_quiz_passed else "ไม่ผ่าน"
+                if other_quiz_passed:
+                    user_earned_learning_points += QUIZ_WEIGHT
+
+            learning_path_data.append({
+                'type': 'quiz_content', # ใช้ประเภท 'quiz_content'
+                'quiz_id': other_quiz_row['quiz_id'],
+                'title': other_quiz_row['title'],
+                'status': other_quiz_status,
+                'passed': other_quiz_passed,
+                'score': other_quiz_score,
+                'passing_percentage': other_quiz_row['passing_percentage']
+            })
+
+
+    # 6. ลบ Post-test หลักสูตรออก (ไม่มีส่วนนี้แล้ว)
+    # ...
+
+    # 7. คำนวณเปอร์เซ็นต์ความคืบหน้ารวม
     if total_possible_learning_points > 0:
         overall_progress_percentage = (user_earned_learning_points / total_possible_learning_points) * 100
     else:
@@ -933,79 +1070,71 @@ def login():
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # ตรวจสอบใน user
-        cursor.execute('SELECT * FROM user WHERE username = %s OR email = %s', (email_or_username, email_or_username))
-        user = cursor.fetchone()
-        if user and check_password_hash(user['password'], password):
-            user_obj = User(
-                id=user['id'], role=user['role'],
-                first_name=user['first_name'], last_name=user['last_name'],
-                username=user['username'], email=user['email'],
-            )
-            login_user(user_obj)
-            session.update({
-                'loggedin': True,
-                'id': user['id'],
-                'first_name': user['first_name'],
-                'last_name': user['last_name'],
-                'username': user['username'],
-                'email': user['email'],
-                'profile_image': user.get('profile_image', 'default.jpg'),
-            })
-            flash('เข้าสู่ระบบสำเร็จ!', 'success')
-            return redirect(url_for('home'))
-
         # ตรวจสอบใน admin
-        cursor.execute('SELECT * FROM admin WHERE username = %s OR email = %s', (email_or_username, email_or_username))
-        admin = cursor.fetchone()
-        if admin and check_password_hash(admin['password'], password):
-            profile_image = admin.get('profile_image') or 'default.jpg'
+        cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM admin WHERE username = %s OR email = %s', (email_or_username, email_or_username))
+        admin_info = cursor.fetchone()
+        if admin_info and check_password_hash(admin_info['password'], password):
+            processed_role = str(admin_info.get('role', 'admin')).strip()
+            print(f"DEBUG: Login Attempt: Found Admin '{admin_info['username']}'. Role: '{processed_role}'")
             admin_obj = Admin(
-                id=admin['id'], role=admin['role'],
-                first_name=admin['first_name'], last_name=admin['last_name'],
-                username=admin['username'], email=admin['email'], tel=admin['tel'],
-                gender=admin.get('gender'),
-                profile_image=profile_image
+                id=admin_info['id'], role=processed_role,
+                first_name=admin_info['first_name'], last_name=admin_info['last_name'],
+                username=admin_info['username'], email=admin_info['email'],
+                tel=admin_info.get('tel'), gender=admin_info.get('gender'),
+                profile_image=admin_info.get('profile_image')
             )
-            login_user(admin_obj)
-            session.update({
-                'loggedin': True,
-                'id': admin['id'],
-                'first_name': admin['first_name'],
-                'last_name': admin['last_name'],
-                'username': admin['username'],
-                'email': admin['email'],
-                'tel': admin['tel'],
-                'profile_image': profile_image,
-            })
-            flash('ผู้ดูแลระบบเข้าสู่ระบบสำเร็จ!', 'success')
-            return redirect(url_for('admin_dashboard'))
-
+            try: # ✅ เพิ่ม try-except block
+                login_user(admin_obj)
+                flash('ผู้ดูแลระบบเข้าสู่ระบบสำเร็จ!', 'success')
+                return redirect(url_for('admin_dashboard'))
+            except Exception as e:
+                print(f"ERROR: Login_user failed for Admin: {e}")
+                flash('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'danger')
+                return redirect(url_for('login'))
+        
         # ตรวจสอบใน instructor
-        cursor.execute('SELECT * FROM instructor WHERE username = %s OR email = %s', (email_or_username, email_or_username))
-        instructor = cursor.fetchone()
-        if instructor and check_password_hash(instructor['password'], password):
-            profile_image = instructor.get('profile_image') or 'default.jpg'
+        cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM instructor WHERE username = %s OR email = %s', (email_or_username, email_or_username))
+        instructor_info = cursor.fetchone()
+        if instructor_info and check_password_hash(instructor_info['password'], password):
+            processed_role = str(instructor_info.get('role', 'instructor')).strip()
+            print(f"DEBUG: Login Attempt: Found Instructor '{instructor_info['username']}'. Role: '{processed_role}'")
             instructor_obj = Instructor(
-                id=instructor['id'], role='instructor',
-                first_name=instructor['first_name'], last_name=instructor['last_name'],
-                username=instructor['username'], email=instructor['email'], tel=instructor['tel'],
-                profile_image=profile_image
+                id=instructor_info['id'], role=processed_role,
+                first_name=instructor_info['first_name'], last_name=instructor_info['last_name'],
+                username=instructor_info['username'], email=instructor_info['email'], tel=instructor_info['tel'],
+                profile_image=instructor_info.get('profile_image')
             )
-            login_user(instructor_obj)
-            session.update({
-                'loggedin': True,
-                'id': instructor['id'],
-                'first_name': instructor['first_name'],
-                'last_name': instructor['last_name'],
-                'username': instructor['username'],
-                'email': instructor['email'],
-                'tel': instructor['tel'],
-                'profile_image': profile_image,
-            })
-            flash('ผู้สอนเข้าสู่ระบบสำเร็จ!', 'success')
-            return redirect(url_for('instructor_dashboard'))
+            try: # ✅ เพิ่ม try-except block
+                login_user(instructor_obj)
+                flash('ผู้สอนเข้าสู่ระบบสำเร็จ!', 'success')
+                return redirect(url_for('instructor_dashboard'))
+            except Exception as e:
+                print(f"ERROR: Login_user failed for Instructor: {e}")
+                flash('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'danger')
+                return redirect(url_for('login'))
 
+        # ตรวจสอบใน user ทั่วไป
+        cursor.execute('SELECT id, username, password, email, role, first_name, last_name, id_card, gender, profile_image FROM user WHERE username = %s OR email = %s', (email_or_username, email_or_username))
+        user_info = cursor.fetchone()
+        if user_info and check_password_hash(user_info['password'], password):
+            processed_role = str(user_info.get('role', 'user')).strip()
+            print(f"DEBUG: Login Attempt: Found User '{user_info['username']}'. Role: '{processed_role}'")
+            user_obj = User(
+                id=user_info['id'], role=processed_role,
+                first_name=user_info['first_name'], last_name=user_info['last_name'],
+                username=user_info['username'], email=user_info['email'],
+                profile_image=user_info.get('profile_image')
+            )
+            try: # ✅ เพิ่ม try-except block
+                login_user(user_obj)
+                flash('เข้าสู่ระบบสำเร็จ!', 'success')
+                return redirect(url_for('home'))
+            except Exception as e:
+                print(f"ERROR: Login_user failed for User: {e}")
+                flash('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'danger')
+                return redirect(url_for('login'))
+
+        print(f"DEBUG: Login Attempt: User '{email_or_username}' not found or password incorrect.")
         flash('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'danger')
         return redirect(url_for('login'))
 
@@ -2496,18 +2625,111 @@ def add_course():
 
 
 
-@app.route('/edit_profile')
+@app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
-    if current_user.role == 'admin':
-        return render_template('admin/edit_profile.html', user=current_user)
-    elif current_user.role == 'instructor':
-        return render_template('instructor/edit_profile.html', user=current_user)
-    elif current_user.role == 'user':
-        return render_template('user/edit_profile.html', user=current_user)
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    user_id = current_user.id
+    current_role = current_user.role
+
+    table_name = ""
+    redirect_dashboard_url = ""
+    select_query_columns = ""
+    update_query_template = ""
+    
+    if current_role == 'admin':
+        table_name = "admin"
+        redirect_dashboard_url = 'admin_dashboard'
+        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role" # ✅ เพิ่ม role
+        update_query_template = """
+            UPDATE admin SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s
+            WHERE id=%s
+        """
+    elif current_role == 'instructor':
+        table_name = "instructor"
+        redirect_dashboard_url = 'instructor_dashboard'
+        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role" # ✅ เพิ่ม role
+        update_query_template = """
+            UPDATE instructor SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s
+            WHERE id=%s
+        """
+    elif current_role == 'user':
+        table_name = "user"
+        redirect_dashboard_url = 'user_dashboard'
+        select_query_columns = "id, username, email, first_name, last_name, id_card, gender, profile_image, role" # ✅ เพิ่ม role
+        update_query_template = """
+            UPDATE user SET first_name=%s, last_name=%s, email=%s, username=%s, id_card=%s, gender=%s, profile_image=%s
+            WHERE id=%s
+        """
     else:
-        flash("ไม่มีสิทธิ์เข้าถึง", "danger")
+        flash("ไม่พบข้อมูลผู้ใช้สำหรับแก้ไข", "danger")
         return redirect(url_for('login'))
+
+
+    if request.method == 'POST':
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        username = request.form['username']
+        email = request.form['email']
+        tel = request.form.get('tel')
+        gender = request.form.get('gender')
+        id_card = request.form.get('id_card')
+        
+        profile_image_file = request.files.get('profile_image')
+        
+        cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
+        current_user_data = cursor.fetchone() # ข้อมูลเดิม
+        
+        filename = current_user_data.get('profile_image') # ค่าเริ่มต้นคือรูปเดิม
+
+        if profile_image_file and allowed_file(profile_image_file.filename, ALLOWED_IMAGE_EXTENSIONS):
+            filename = secure_filename(profile_image_file.filename)
+            upload_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER_PROFILE_IMAGES'])
+            os.makedirs(upload_path, exist_ok=True)
+            profile_image_file.save(os.path.join(upload_path, filename))
+            if current_user_data.get('profile_image') and os.path.exists(os.path.join(upload_path, current_user_data['profile_image'])):
+                try: os.remove(os.path.join(upload_path, current_user_data['profile_image']))
+                except Exception as e: print(f"ERROR: Could not delete old profile image: {e}")
+        elif profile_image_file and profile_image_file.filename == '':
+            pass
+
+
+        update_values = []
+        if current_role == 'admin' or current_role == 'instructor':
+            update_values = (first_name, last_name, email, username, tel, gender, filename, user_id)
+        elif current_role == 'user':
+            update_values = (first_name, last_name, email, username, id_card, gender, filename, user_id)
+        
+        try:
+            cursor.execute(update_query_template, update_values)
+            mysql.connection.commit()
+            flash('แก้ไขโปรไฟล์เรียบร้อยแล้ว!', 'success')
+            
+            # ✅ รีโหลด current_user object โดยใช้ _update_current_user
+            if not _update_current_user(user_id, current_role, table_name, select_query_columns):
+                flash('เกิดข้อผิดพลาดในการรีโหลดโปรไฟล์', 'danger')
+                print(f"ERROR: Failed to reload current_user for ID {user_id}, Role {current_role}")
+            
+            cursor.close()
+            return redirect(url_for(redirect_dashboard_url))
+
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f'เกิดข้อผิดพลาดในการบันทึกโปรไฟล์: {str(e)}', 'danger')
+            print(f"ERROR: Profile update failed: {e}")
+            cursor.close()
+            return render_template(f'{current_role}/edit_profile.html', user=current_user_data)
+
+
+    cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
+    user_data = cursor.fetchone()
+    cursor.close()
+
+    if not user_data:
+        flash("ไม่พบข้อมูลโปรไฟล์", "danger")
+        return redirect(url_for('login'))
+    
+    return render_template(f'{current_role}/edit_profile.html', user=user_data)
 
 @app.route('/instructor/dashboard')
 @instructor_required
