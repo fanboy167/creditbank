@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 03, 2025 at 01:35 PM
+-- Generation Time: Jul 21, 2025 at 10:00 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -45,7 +45,7 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`id`, `first_name`, `last_name`, `email`, `username`, `gender`, `password`, `role`, `tel`, `profile_image`) VALUES
-(3, 'admin', 'teste', 'admin@gmail.com', 'admin', 'Male', 'scrypt:32768:8:1$vkJUSWAzx0Vsmj98$0ca7495f5c23fb3065e2258f3087160b9dfb8167b0596a3ba664f7dd4f87953e799eada96e4022b91232aac0cba897fa05c4644da9f826d63a3879cce47f0d8d', 'admin', '0987676774', NULL),
+(3, 'admin', 'teste', 'admin@gmail.com', 'admin', 'Male', 'scrypt:32768:8:1$vkJUSWAzx0Vsmj98$0ca7495f5c23fb3065e2258f3087160b9dfb8167b0596a3ba664f7dd4f87953e799eada96e4022b91232aac0cba897fa05c4644da9f826d63a3879cce47f0d8d', 'admin', '0987676774', '1.jpg'),
 (7, 'supap', 'rukdee', 'asdadasd@gmail.com', 'tests1234', 'Male', 'scrypt:32768:8:1$twRmfoNf9zTyjogk$30ba73f74e0b685b6ba47cc895c1b8c12b80a97b6ac6cb94b8e212600f39e9340c3e3b6055b9e3d2904995ac73a4c869bb3e4b94e20fdf6c833bd0dfef6c3b57', 'admin', '0944334455', NULL);
 
 -- --------------------------------------------------------
@@ -115,7 +115,7 @@ CREATE TABLE `instructor` (
 --
 
 INSERT INTO `instructor` (`id`, `first_name`, `last_name`, `email`, `username`, `gender`, `password`, `role`, `tel`, `profile_image`) VALUES
-(6, 'jamjann', 'mungpijit', 'instructor@gmail.com', 'instructor', 'Female', 'scrypt:32768:8:1$zBTKTEERcHaUHLtz$138f13bcafffe559ac5c294ffa493f010e93b3294351e8b48ee76910a2f58afc555df4ae45e2dc50ae9ee7b69e5fecb8cb79c3b590d4708e65ad93572a9d7ffc', 'instructor', '0944334433', NULL),
+(6, 'jamjann', 'mungpijit', 'instructor@gmail.com', 'instructor', 'Female', 'scrypt:32768:8:1$zBTKTEERcHaUHLtz$138f13bcafffe559ac5c294ffa493f010e93b3294351e8b48ee76910a2f58afc555df4ae45e2dc50ae9ee7b69e5fecb8cb79c3b590d4708e65ad93572a9d7ffc', 'instructor', '0944334433', 'jpg'),
 (7, 'lao', 'ty', 'twfsdfdd@gmail.com', 'test2', 'Female', 'scrypt:32768:8:1$BJZDSC4sBWip9fRo$6065696a9106fc04616baade252d53717f96e929c9f56ffa94db76af067ff61309426bc823cf653b25297cf689654df05079bada812502ab2531efa2150fca6b', 'instructor', '0944334778', NULL);
 
 -- --------------------------------------------------------
@@ -138,7 +138,8 @@ CREATE TABLE `lesson` (
 --
 
 INSERT INTO `lesson` (`lesson_id`, `lesson_name`, `lesson_date`, `course_id`, `instructor_id`, `description`) VALUES
-(6, 'บทที่1 แบบทดสอบพนฐานความมนคงของระบบสารสนเทศ', '2025-06-16 19:02:27', 12, 6, NULL);
+(6, 'บทที่1 แบบทดสอบพนฐานความมนคงของระบบสารสนเทศ', '2025-06-16 19:02:27', 12, 6, NULL),
+(7, 'บทที่ 2 วงจรการพัฒนาระบบความมั ่นคงของระบบสารสนเทศ', '2025-07-20 00:00:00', 12, 6, NULL);
 
 -- --------------------------------------------------------
 
@@ -169,7 +170,25 @@ CREATE TABLE `questions` (
 
 INSERT INTO `questions` (`question_id`, `quiz_id`, `score`, `question_name`, `choice_a`, `choice_b`, `choice_c`, `choice_d`, `correct_answer`, `question_image`, `choice_a_image`, `choice_b_image`, `choice_c_image`, `choice_d_image`) VALUES
 (19, 42, 1, '1. ข้อใดคือองค์ประกอบของความมั ่นคงสารสนเทศ (CIA Triad)?', 'Control, Integrity, Accuracy ', 'Confidentiality, Integrity, Availability', 'Communication, Innovation, Access ', ' Compliance, Information, Audit ', 'b', '', '', '', '', ''),
-(20, 42, 1, '2. ข้อใดอธิบายคำว่า Threat ได้ถูกต้องที่สุด? ', ' ช่องโหว่ในระบบ', 'วิธีการที่ใช้ป้องกันข้อมูล', ' ความเสี่ยงทางการเงิน', 'สงทที่อาจก่อให้เกิดอันตรายต่อระบบ ', 'd', '', '', '', '', '');
+(20, 42, 1, '2. ข้อใดอธิบายคำว่า Threat ได้ถูกต้องที่สุด? ', ' ช่องโหว่ในระบบ', 'วิธีการที่ใช้ป้องกันข้อมูล', ' ความเสี่ยงทางการเงิน', 'สงทที่อาจก่อให้เกิดอันตรายต่อระบบ ', 'd', '', '', '', '', ''),
+(21, 42, 1, '3. คำว่า Vulnerability หมายถึงอะไรในระบบความมั่นคงสารสนเทศ? ', 'ช่องทางการสื่อสาร ', 'ช่องโหว่หรือจุดอ่อนของระบบ ', 'วิธีเข้ารหัสข้อมูล ', 'วิธีเข้าถึงระบบอย่างถูกต้อง ', 'b', '', '', '', '', ''),
+(22, 42, 1, '4. ความเสี่ยง (Risk) เกิดจากอะไร? ', 'การใช้ซอฟต์แวร์ของแท้ ', 'ความเป็นไปได้ของภัยคุกคามที่ใช้ช่องโหว่ ', 'การอัปเดตระบบสม ่าเสมอ ', 'ระบบที่มีประสิทธิภาพ', 'b', '', '', '', '', ''),
+(23, 42, 1, '5. ข้อใดไม่ใช่ประเภทของ Security Control?', 'Physical Control', 'Administrative Control', 'Technical Control ', 'Financial Control ', 'd', '', '', '', '', ''),
+(24, 43, 1, '5. ข้อใดไม่ใช่ประเภทของ Security Control? ', 'Physical Control', 'Administrative Control', 'Technical Control ', ' Financial Control ', 'd', '', '', '', '', ''),
+(25, 43, 1, '6. Firewall ทำหน้าที่อะไร?', ' ตรวจสอบความเร็วอินเทอร์เน็ต ', 'ป้องกันการเข้าถึงเครือข่ายโดยไม่ได้รับอนุญาต ', ' เข้ารหัสขอมูลทั้งหมด ', ' บันทึกการใช้งานเว็บไซต์ ', 'b', '', '', '', '', ''),
+(26, 43, 1, '7. ข้อใดคือความแตกต่างหลักระหว่าง IDS และ IPS? ', 'IDS ป้องกันไวรัส, IPS ตรวจสอบอินเทอร์เน็ต', ' IDS ตรวจจับ, IPS ป้องกัน', ' IDS เก็บข้อมูล, IPS สร้างรหัสผ่าน ', 'IDS คือฮาร์ดแวร์, IPS คือซอฟต์แวร์ ', 'b', '', '', '', '', ''),
+(27, 43, 1, ' Public Key ใช้ท าอะไร? ', 'ถอดรหัสข้อมูล ', ' ใช้เพื่อเก็บข้อมูลส ารอง ', ' เข้ารหัสเพื่อส่งข้อมูล ', ' แสดงชื่อผู ้ใช้ในระบบ', 'c', '', '', '', '', ''),
+(28, 43, 1, 'ข้อใดเป็นความสามารถของ Anti-malware? ', 'ป้องกันไวรัสเท่านั้น ', ' ป้องกันมัลแวร์ทุกรูปแบบ ', ' ป้องกันเฉพาะโฆษณา', ' ใช้ส าหรับจัดการบัญชีผู ้ใช้ ', 'b', '', '', '', '', ''),
+(29, 44, 1, '1. ข้อใดคือขั ้นตอนแรกในวงจรการพัฒนาระบบความมั ่นคงของสารสนเทศ?', 'การนำไปใช้งาน (Implementation) ', ' การระบุความต้องการด้านความมั ่นคง (Security Requirements) ', 'การทดสอบระบบ (Testing) ', 'การบ ารุงรักษาระบบ (Maintenance) ', 'b', '', '', '', '', ''),
+(31, 44, 1, '2. ในขั้นตอนการวิเคราะห์ความเสี่ยง (Risk Assessment) สิ่งใดที่ต้องพิจารณา? ', 'ความเร็วของระบบ', 'ค่าใช้จ่ายในการพัฒนา ', 'ช่องโหว่และภัยคุกคาม ', 'ความสวยงามของหน้าจอ', 'c', '', '', '', '', ''),
+(32, 44, 1, '3. การออกแบบระบบความมั่นคงควรมีเป้าหมายใดเป็นหลัก?', 'ลดจำนวนผู้ใช้งาน ', ' เพิ่มความซับซ้อน ', 'สร้างระบบที่ป้องกันภัยคุกคามได้อย่างเหมาะสม', ' ใช้ซอฟต์แวร์ที่มีราคาสูง', 'c', '', '', '', '', ''),
+(33, 44, 1, '4. การน าระบบความมั ่นคงไปใช้งานจริง ควรคำนึงถึงเรื่องใด? ', ' ความสวยงามของระบบ', 'ความสะดวกของผู ้ใช้งานและความปลอดภัย ', ' การใช้กราฟิกคุณภาพสูง ', ' ความสามารถในการสร้างรายงานทางบัญช', 'b', '', '', '', '', ''),
+(34, 44, 1, '5. การทดสอบระบบความมั่นคงมักใช้วิธีใด?', 'การเทียบสีในระบบ', 'การสำรวจผู้ใช้งาน', 'การทดสอบการเจาะระบบ (Penetration Testing)', ' การใช้สคริปต์ตกแต่งหน้าจอ', 'c', '', '', '', '', ''),
+(35, 45, 1, '6. วงจรการพัฒนาระบบความมั ่นคงมีลักษณะอย่างไร? ', ' แบบเส้นตรง ', 'แบบไม่แน่นอน', 'แบบวงกลมต่อเนื่อง ', ' แบบกลุ่มซ้อนกัน ', 'c', '', '', '', '', ''),
+(36, 45, 1, '7. การฝึกอบรมผู ้ใช้งานในระบบใหม่ มีจุดประสงค์ใด? ', 'ลดค่าใช้จ่าย ', ' ให้ผู ้ใช้รู ้วิธีใช้ระบบอย่างปลอดภัย', ' เพิ่มการขาย ', 'ลดการใช้ไฟฟ้า', 'b', '', '', '', '', ''),
+(37, 45, 1, '8. การปรับปรุงและบ ารุงรักษาระบบมีวัตถุประสงค์ใด? ', 'ปรับเปลี่ยนโลโก', ' เพิ่มลูกเล่นใหม', 'ป้องกันและแก้ไขช่องโหว่ที่เกิดขึ ้น ', ' เพิ่มสีสันในระบบ', 'c', '', '', '', '', ''),
+(38, 45, 1, '9. การจัดทำเอกสารระบบความมั ่นคงมีประโยชน์ใด? ', 'เพื่อการโฆษณา', 'เพื่อการจัดซื ้ออุปกรณ์ ', ' เพื่อให้ทีมงานสามารถตรวจสอบและบ ารุงรักษาได', ' เพื่อทำรายงานการเงิน ', 'c', '', '', '', '', ''),
+(39, 45, 1, '10. การระบุความต้องการด้านความมั ่นคงควรรวมสิ่งใดบ้าง?', ' งบประมาณของโครงการ', ' ความต้องการของผู ้ใช้งานและข้อก าหนดด้านความปลอดภัย ', 'ลักษณะหน้าจอโปรแกรม', 'รายชื ่อผู ้พัฒนา', 'b', '', '', '', '', '');
 
 -- --------------------------------------------------------
 
@@ -191,7 +210,10 @@ CREATE TABLE `quiz` (
 --
 
 INSERT INTO `quiz` (`quiz_id`, `quiz_name`, `lesson_id`, `passing_percentage`, `quiz_date`, `quiz_type`) VALUES
-(42, 'Pre-test', 6, 0, '2025-06-19 02:44:01', 'Pre-test');
+(42, 'Pre-test', 6, 0, '2025-06-19 02:44:01', 'Pre-test'),
+(43, 'Post-test', 6, 80, '2025-07-17 00:12:42', 'Post_test'),
+(44, 'Pre-test', 7, 0, '2025-07-20 16:37:12', 'Pre-test'),
+(45, 'Post-test', 7, 80, '2025-07-20 16:43:10', 'Post_test');
 
 -- --------------------------------------------------------
 
@@ -217,7 +239,11 @@ CREATE TABLE `quiz_video` (
 
 INSERT INTO `quiz_video` (`video_id`, `title`, `youtube_link`, `description`, `time_duration`, `preview`, `video_image`, `quiz_id`, `lesson_id`) VALUES
 (62, 'Pre-test', '', NULL, NULL, NULL, NULL, 42, 6),
-(63, 'the toys', 'https://www.youtube.com/watch?v=L7R0I6FPPbw', 'the toys', '4', NULL, NULL, NULL, 6);
+(63, 'บทที่1 แบบทดสอบพนฐานความมนคงของระบบสารสนเทศ', 'https://www.youtube.com/watch?v=LHH-8cd8ajU', '', '2.50', NULL, 'testy.jpg', NULL, 6),
+(64, 'Post-test', '', NULL, NULL, NULL, NULL, 43, 6),
+(65, 'Pre-test', '', NULL, NULL, NULL, NULL, 44, 7),
+(66, 'บทที่ 2 วงจรการพัฒนาระบบความมั ่นคงของระบบสารสนเทศ', 'https://www.youtube.com/watch?v=rRg0BM6gnWU', '', '4', NULL, NULL, NULL, 7),
+(67, 'Post-test', '', NULL, NULL, NULL, NULL, 45, 7);
 
 -- --------------------------------------------------------
 
@@ -237,7 +263,7 @@ CREATE TABLE `registered_courses` (
 --
 
 INSERT INTO `registered_courses` (`id`, `user_id`, `course_id`, `registered_at`) VALUES
-(24, 34, 12, '2025-07-03 18:32:58');
+(33, 34, 12, '2025-07-21 01:38:03');
 
 -- --------------------------------------------------------
 
@@ -265,7 +291,7 @@ CREATE TABLE `user` (
 --
 
 INSERT INTO `user` (`id`, `first_name`, `last_name`, `email`, `username`, `id_card`, `gender`, `password`, `role`, `created_at`, `profile_image`, `tel`) VALUES
-(34, 'ubann', 'titu', 'qwer@gmail.com', 'user', '7777777754545', 'male', 'scrypt:32768:8:1$NUevnNNTHXSBUFvB$74d34d9e28b8030da208d104ba294a9c8e4c538b0385f874dcb2408e5eb49ce944735c159b00df4bd2a902b0289bb571a2fbbc37c6b57f82bf6029a6435bd253', 'user', '2025-06-09 09:41:39', 'default.jpg', '0987676789');
+(34, 'ubann', 'titu', 'qwer@gmail.com', 'user', '7777777754545', '', 'scrypt:32768:8:1$NUevnNNTHXSBUFvB$74d34d9e28b8030da208d104ba294a9c8e4c538b0385f874dcb2408e5eb49ce944735c159b00df4bd2a902b0289bb571a2fbbc37c6b57f82bf6029a6435bd253', 'user', '2025-06-09 09:41:39', 'resume.jpg', '0987676789');
 
 -- --------------------------------------------------------
 
@@ -287,7 +313,7 @@ CREATE TABLE `user_lesson_progress` (
 --
 
 INSERT INTO `user_lesson_progress` (`id`, `user_id`, `video_id`, `lesson_id`, `is_completed`, `completed_at`) VALUES
-(2, 34, 63, 6, 1, '2025-07-03 18:34:40');
+(8, 34, 63, 6, 1, '2025-07-21 01:38:16');
 
 -- --------------------------------------------------------
 
@@ -309,7 +335,7 @@ CREATE TABLE `user_quiz_attempts` (
 --
 
 INSERT INTO `user_quiz_attempts` (`id`, `user_id`, `quiz_id`, `score`, `passed`, `attempt_date`) VALUES
-(16, 34, 42, 2, 1, '2025-07-03 18:34:47');
+(21, 34, 42, 0, 1, '2025-07-21 01:46:25');
 
 --
 -- Indexes for dumped tables
@@ -429,31 +455,31 @@ ALTER TABLE `instructor`
 -- AUTO_INCREMENT for table `lesson`
 --
 ALTER TABLE `lesson`
-  MODIFY `lesson_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `lesson_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `questions`
 --
 ALTER TABLE `questions`
-  MODIFY `question_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `question_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `quiz`
 --
 ALTER TABLE `quiz`
-  MODIFY `quiz_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `quiz_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT for table `quiz_video`
 --
 ALTER TABLE `quiz_video`
-  MODIFY `video_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `video_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `user`
@@ -465,13 +491,13 @@ ALTER TABLE `user`
 -- AUTO_INCREMENT for table `user_lesson_progress`
 --
 ALTER TABLE `user_lesson_progress`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `user_quiz_attempts`
 --
 ALTER TABLE `user_quiz_attempts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- Constraints for dumped tables
