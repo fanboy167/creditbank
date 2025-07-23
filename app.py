@@ -362,14 +362,12 @@ def course_detail(course_id):
 
     print(f"\n--- DEBUG: เข้าสู่ course_detail สำหรับ course_id: {course_id} ---")
 
-    # ✅ แก้ไข SQL Query ใหม่: ดึงข้อมูลหลักสูตรและ Pre-test quiz อย่างถูกต้อง
-    #    โดยใช้ LEFT JOINs แบบง่ายๆ และกรอง Pre-test ใน ON clause
     query = """
     SELECT
       c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
       cat.id AS category_id, cat.name AS category_name,
       i.id AS instructor_id, i.first_name, i.last_name,
-      c.status, -- SELECT status มาด้วย
+      c.status,
       
       pre_q.quiz_id AS pre_test_quiz_id,
       pre_q.quiz_name AS pre_test_quiz_name,
@@ -378,21 +376,20 @@ def course_detail(course_id):
     LEFT JOIN categories cat ON c.categories_id = cat.id
     LEFT JOIN instructor i ON c.instructor_id = i.id
     
-    -- LEFT JOIN กับ lesson และ quiz เพื่อหา Pre-test
-    -- โดยจะใช้ lesson_id จากตาราง lesson และ quiz_type จากตาราง quiz
-    -- และกรองเฉพาะ Pre-test
     LEFT JOIN lesson AS l_quiz ON l_quiz.course_id = c.id
     LEFT JOIN quiz AS pre_q ON pre_q.lesson_id = l_quiz.lesson_id AND pre_q.quiz_type = 'Pre-test'
     
-    WHERE c.id = %s -- ✅ WHERE clause หลัก
+    WHERE c.id = %s AND c.status = 'publish'
     GROUP BY c.id, c.title, c.description, c.featured_image, c.featured_video,
              cat.id, cat.name, i.id, i.first_name, i.last_name, c.status,
              pre_q.quiz_id, pre_q.quiz_name, pre_q.passing_percentage
     LIMIT 1
     """
+    
+    # ✅ ดึง course_data ไว้ใน try-except block
     try:
         cursor.execute(query, (course_id,))
-        course_data = cursor.fetchone()
+        course_data = cursor.fetchone() # ✅ course_data ถูกกำหนดตรงนี้
     except Exception as e:
         print(f"ERROR: SQL Error in course_detail query: {e}")
         flash(f"เกิดข้อผิดพลาดในการดึงข้อมูลหลักสูตร: {str(e)}", "danger")
@@ -405,7 +402,7 @@ def course_detail(course_id):
         cursor.close()
         return redirect(url_for('course'))
 
-    # ✅ ตรวจสอบสถานะหลังจากดึงข้อมูลมาแล้ว
+    # ✅ ตรวจสอบสถานะหลังจากดึงข้อมูลมาแล้ว (ย้ายมาไว้ข้างนอก try-except)
     if course_data.get('status') != 'publish':
         print(f"DEBUG: หลักสูตร ID {course_id} สถานะไม่ใช่ 'publish' ('{course_data.get('status')}'). Redirect ไปที่ /course.")
         flash('หลักสูตรนี้ยังไม่ถูกเผยแพร่', 'danger')
@@ -417,6 +414,7 @@ def course_detail(course_id):
     print(f"DEBUG: สถานะหลักสูตรจาก DB: '{course_data.get('status')}'")
     print(f"DEBUG: Course ID from DB: {course_data.get('id')}")
 
+    # ✅ สร้าง course dictionary หลังจาก course_data ถูกกำหนดแล้ว
     course = {
         'id': course_data['id'], 'course_name': course_data['course_name'], 'description': course_data.get('description', ''),
         'featured_image': course_data['featured_image'], 'featured_video': course_data['featured_video'],
@@ -431,9 +429,65 @@ def course_detail(course_id):
         'duration_hours': 'N/A'
     }
 
+    # ✅ ดึงจำนวนนักเรียนที่ลงทะเบียนหลักสูตรนี้ (ย้ายมาไว้หลัง course_data ถูกกำหนด)
+    cursor.execute("SELECT COUNT(id) AS student_count FROM registered_courses WHERE course_id = %s", (course_id,))
+    student_count_result = cursor.fetchone()
+    student_count = student_count_result['student_count'] if student_count_result else 0
+    course['students_count'] = student_count # ✅ อัปเดตใน course dict
+
+    # ✅ ดึงและคำนวณระยะเวลารวมของวิดีโอทั้งหมดในหลักสูตร (ย้ายมาไว้หลัง course_data ถูกกำหนด)
+    total_duration_minutes = 0
+    print(f"DEBUG: กำลังคำนวณระยะเวลารวมสำหรับ course_id: {course_id}")
+    
+    duration_query = """
+        SELECT qv.time_duration, qv.title, qv.video_id, l.lesson_id, l.lesson_name
+        FROM quiz_video qv
+        JOIN lesson l ON qv.lesson_id = l.lesson_id
+        WHERE l.course_id = %s AND qv.quiz_id IS NULL -- เฉพาะวิดีโอ
+    """
+    print(f"DEBUG: Executing duration query: {duration_query % course_id}")
+    
+    cursor.execute(duration_query, (course_id,))
+    video_durations_raw = cursor.fetchall()
+    
+    print(f"DEBUG: วิดีโอที่ดึงมาเพื่อคำนวณระยะเวลา: {video_durations_raw}")
+
+    for duration_row in video_durations_raw:
+        duration_str = duration_row.get('time_duration')
+        video_title = duration_row.get('title')
+        video_id_debug = duration_row.get('video_id')
+        lesson_id_debug = duration_row.get('lesson_id')
+
+        if duration_str:
+            try:
+                parts = [int(p) for p in duration_str.split(':')]
+                current_video_minutes = 0
+                if len(parts) == 2: # MM:SS
+                    current_video_minutes = parts[0] + parts[1] / 60
+                elif len(parts) == 3: # HH:MM:SS
+                    current_video_minutes = parts[0] * 60 + parts[1] + parts[2] / 60
+                total_duration_minutes += current_video_minutes
+                print(f"DEBUG: วิดีโอ '{video_title}' (ID: {video_id_debug}, Lesson: {lesson_id_debug}) ระยะเวลา '{duration_str}' -> {current_video_minutes:.2f} นาที. รวม: {total_duration_minutes:.2f} นาที")
+            except ValueError:
+                print(f"WARNING: วิดีโอ '{video_title}' (ID: {video_id_debug}) มีรูปแบบ time_duration ไม่ถูกต้อง: '{duration_str}'. ข้ามการคำนวณ.")
+        else:
+            print(f"WARNING: วิดีโอ '{video_title}' (ID: {video_id_debug}) ไม่มี time_duration หรือเป็น NULL.")
+    
+    course_duration_display = "N/A"
+    if total_duration_minutes > 0:
+        hours = int(total_duration_minutes // 60)
+        minutes = int(total_duration_minutes % 60)
+        if hours > 0:
+            course_duration_display = f"{hours} ชม. {minutes} นาที"
+        else:
+            course_duration_display = f"{minutes} นาที"
+    print(f"DEBUG: ระยะเวลารวมของหลักสูตร: {course_duration_display}")
+    course['duration_hours'] = course_duration_display # ✅ อัปเดตใน course dict
+
+
     # 2. ดึงบทเรียนทั้งหมดของหลักสูตรนี้ (เหมือนเดิม)
     cursor.execute("""
-        SELECT lesson_id, lesson_name, lesson_date
+        SELECT lesson_id, lesson_name, lesson_date, description
         FROM lesson
         WHERE course_id = %s
         ORDER BY lesson_date ASC
@@ -453,7 +507,7 @@ def course_detail(course_id):
     passed_display = False
 
     if current_user.is_authenticated:
-        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id))
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
         if cursor.fetchone():
             is_enrolled = True
         
