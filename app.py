@@ -649,7 +649,7 @@ def join_course(course_id):
 def user_learning_path(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลหลักสูตร (ไม่มี Pre-test quiz หลักสูตรใน SELECT แล้ว)
+    # 1. ดึงข้อมูลหลักสูตร (โค้ดเดิม)
     query = """
     SELECT
       c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
@@ -684,7 +684,7 @@ def user_learning_path(course_id):
         'status': course_data.get('status')
     }
 
-    # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่
+    # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่ (โค้ดเดิม)
     cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
     is_enrolled = cursor.fetchone()
     if not is_enrolled:
@@ -692,7 +692,7 @@ def user_learning_path(course_id):
         cursor.close()
         return redirect(url_for('course_detail', course_id=course_id))
 
-    # 3. ดึงบทเรียนทั้งหมดของหลักสูตรนี้
+    # 3. ดึงบทเรียนทั้งหมดของหลักสูตรนี้ (โค้ดเดิม)
     cursor.execute("""
         SELECT lesson_id, lesson_name, description
         FROM lesson
@@ -704,24 +704,38 @@ def user_learning_path(course_id):
     learning_path_data = []
     
     VIDEO_WEIGHT = 1
-    QUIZ_WEIGHT = 1 # ใช้สำหรับ Pre-test บทเรียน, Post-test บทเรียน, Quiz Content
+    QUIZ_WEIGHT = 1
 
     total_possible_learning_points = 0
     user_earned_learning_points = 0
+    
+    # ======================== START: ส่วนที่แก้ไขและเพิ่มเติม ========================
 
-    # 4. ลบ Pre-test หลักสูตร (ไม่มีส่วนนี้แล้ว)
-    # if course_for_template['pre_test_quiz_id_course']: ...
+    # ตัวแปรสำคัญ: ใช้ติดตามว่า "บทเรียนก่อนหน้า" จบสมบูรณ์แล้วหรือยัง
+    # ตั้งเป็น True เพื่อให้บทเรียนแรกสุดปลดล็อกเสมอ
+    previous_lesson_completed = True
 
-    # 5. วนลูปบทเรียนและเนื้อหา (Pre-test บทเรียน, วิดีโอ, Post-test บทเรียน)
+    # 5. วนลูปบทเรียนและเนื้อหา
     for lesson_row in lessons_raw:
+        
+        # ตรวจสอบว่าบทเรียนปัจจุบันควรถูกล็อกหรือไม่
+        # ถ้าบทก่อนหน้ายังไม่จบ (False) บทนี้จะถูกล็อก (True)
+        is_locked = not previous_lesson_completed
+
+        # ตัวแปรสำหรับตรวจสอบว่า "บทเรียนปัจจุบัน" จบสมบูรณ์หรือไม่
+        # ตั้งต้นว่าจบ (True) แล้วถ้าเจอเงื่อนไขไหนไม่ครบ จะเปลี่ยนเป็น False
+        current_lesson_is_complete = True
+        
+        # เพิ่มหัวข้อบทเรียนลงใน list พร้อมสถานะการล็อก
         learning_path_data.append({
             'type': 'lesson',
             'lesson_id': lesson_row['lesson_id'],
             'title': lesson_row['lesson_name'],
-            'description': lesson_row['description']
+            'description': lesson_row['description'],
+            'is_locked': is_locked  # เพิ่มสถานะการล็อก
         })
         
-        # ดึงเนื้อหา (วิดีโอและแบบทดสอบ) ที่ผูกกับบทเรียนนี้
+        # ดึงเนื้อหาทั้งหมดของบทเรียนนี้ (โค้ดเดิม)
         cursor.execute("""
             SELECT video_id, title, youtube_link, description, time_duration, video_image, quiz_id
             FROM quiz_video
@@ -730,151 +744,110 @@ def user_learning_path(course_id):
         """, (lesson_row['lesson_id'],))
         contents_raw = cursor.fetchall()
 
-        # แยกวิดีโอ, Pre-test บทเรียน, Post-test บทเรียน
-        lesson_pre_test_quiz = None # เปลี่ยนชื่อตัวแปร
-        lesson_post_test_quiz = None # เปลี่ยนชื่อตัวแปร
+        lesson_pre_test_quiz = None
+        lesson_post_test_quiz = None
         lesson_videos = []
-        lesson_other_quizzes = [] # สำหรับแบบทดสอบอื่นๆ ที่ไม่ใช่ pre/post
+        lesson_other_quizzes = []
 
+        # แยกประเภทเนื้อหา (โค้ดเดิม)
         for content_row in contents_raw:
-            if content_row['quiz_id']: # ถ้าเป็นแบบทดสอบ
+            if content_row['quiz_id']:
                 cursor.execute("SELECT quiz_name, quiz_type, passing_percentage FROM quiz WHERE quiz_id = %s", (content_row['quiz_id'],))
                 quiz_info = cursor.fetchone()
+                if quiz_info and quiz_info['quiz_type'] == 'Pre-test':
+                    lesson_pre_test_quiz = {'quiz_id': content_row['quiz_id'], 'title': f"แบบทดสอบก่อนบทเรียน: {quiz_info['quiz_name']}", 'passing_percentage': quiz_info['passing_percentage']}
+                
+                # VVVV บรรทัดที่ต้องแก้ไขอยู่ตรงนี้ VVVV
+                elif quiz_info and quiz_info['quiz_type'] == 'Post_test': # <--- แก้จาก Post-test กลับเป็น Post_test (ใช้ขีดล่าง)
+                # ^^^^ บรรทัดที่ต้องแก้ไขอยู่ตรงนี้ ^^^^
+                
+                    lesson_post_test_quiz = {'quiz_id': content_row['quiz_id'], 'title': f"แบบทดสอบหลังเรียน: {quiz_info['quiz_name']}", 'passing_percentage': quiz_info['passing_percentage']}
+                else:
+                    lesson_other_quizzes.append({'quiz_id': content_row['quiz_id'], 'title': f"แบบทดสอบ: {quiz_info['quiz_name'] if quiz_info else content_row['title']}", 'passing_percentage': quiz_info['passing_percentage'] if quiz_info else 0})
+            else:
+                lesson_videos.append(content_row)
 
-                if quiz_info and quiz_info['quiz_type'] == 'Pre-test': # ✅ Pre-test บทเรียน
-                    lesson_pre_test_quiz = {
-                        'quiz_id': content_row['quiz_id'],
-                        'title': f"แบบทดสอบก่อนบทเรียน: {quiz_info['quiz_name']}",
-                        'passing_percentage': quiz_info['passing_percentage']
-                    }
-                elif quiz_info and quiz_info['quiz_type'] == 'Post_test': # ✅ Post-test บทเรียน
-                    lesson_post_test_quiz = {
-                        'quiz_id': content_row['quiz_id'],
-                        'title': f"แบบทดสอบหลังบทเรียน: {quiz_info['quiz_name']}",
-                        'passing_percentage': quiz_info['passing_percentage']
-                    }
-                else: # แบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน
-                     lesson_other_quizzes.append({
-                        'quiz_id': content_row['quiz_id'],
-                        'title': f"แบบทดสอบ: {quiz_info['quiz_name'] if quiz_info else content_row['title']}",
-                        'passing_percentage': quiz_info['passing_percentage'] if quiz_info else 0
-                    })
-
-            else: # ถ้าเป็นวิดีโอ
-                lesson_videos.append(content_row) # เก็บวิดีโอไว้ใน list แยกต่างหาก
-
-        # ✅ เพิ่ม Pre-test บทเรียน (ถ้ามี)
+        # ประมวลผล Pre-test (ถ้ามี)
         if lesson_pre_test_quiz:
             total_possible_learning_points += QUIZ_WEIGHT
-            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                           (current_user.id, lesson_pre_test_quiz['quiz_id']))
-            pre_test_attempt_lesson = cursor.fetchone()
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1", (current_user.id, lesson_pre_test_quiz['quiz_id']))
+            attempt = cursor.fetchone()
+            passed = attempt['passed'] if attempt else False
+            if passed: user_earned_learning_points += QUIZ_WEIGHT
             
-            pre_test_status_lesson = "ยังไม่ทำ"
-            pre_test_score = pre_test_attempt_lesson['score'] if pre_test_attempt_lesson and pre_test_attempt_lesson['score'] is not None else 0
-            pre_test_passed = pre_test_attempt_lesson['passed'] if pre_test_attempt_lesson and pre_test_attempt_lesson['passed'] is not None else False
-
-            if pre_test_attempt_lesson:
-                pre_test_status_lesson = "ผ่าน" if pre_test_passed else "ไม่ผ่าน"
-                if pre_test_passed:
-                    user_earned_learning_points += QUIZ_WEIGHT
+            # ไม่ว่า Pre-test จะผ่านหรือไม่ ก็ไม่นำมาเป็นเงื่อนไขในการล็อกบทถัดไป
+            # แต่ถ้าคุณต้องการให้นับ ให้เพิ่มบรรทัด: if not passed: current_lesson_is_complete = False
             
             learning_path_data.append({
-                'type': 'pre_test_lesson', # ประเภทใหม่สำหรับ Pre-test บทเรียน
-                'quiz_id': lesson_pre_test_quiz['quiz_id'],
-                'title': lesson_pre_test_quiz['title'],
-                'status': pre_test_status_lesson,
-                'passed': pre_test_passed,
-                'score': pre_test_score,
-                'passing_percentage': lesson_pre_test_quiz['passing_percentage']
+                'type': 'pre_test_lesson', 'quiz_id': lesson_pre_test_quiz['quiz_id'], 'title': lesson_pre_test_quiz['title'],
+                'status': "ผ่าน" if passed else ("ไม่ผ่าน" if attempt else "ยังไม่ทำ"),
+                'passed': passed, 'score': attempt['score'] if attempt else 0, 'passing_percentage': lesson_pre_test_quiz['passing_percentage'],
+                'is_locked': is_locked # เพิ่มสถานะการล็อก
             })
         
-        # เพิ่มวิดีโอของบทเรียน
+        # ประมวลผลวิดีโอ
         for video_row in lesson_videos:
             total_possible_learning_points += VIDEO_WEIGHT
-            cursor.execute("SELECT is_completed FROM user_lesson_progress WHERE user_id = %s AND video_id = %s",
-                           (current_user.id, video_row['video_id']))
-            video_progress = cursor.fetchone()
-            
-            video_status = "ยังไม่ได้ดู"
-            is_video_completed = video_progress['is_completed'] if video_progress and video_progress['is_completed'] is not None else False
-
-            if video_progress and is_video_completed:
-                video_status = "ดูแล้ว"
+            cursor.execute("SELECT is_completed FROM user_lesson_progress WHERE user_id = %s AND video_id = %s", (current_user.id, video_row['video_id']))
+            progress = cursor.fetchone()
+            is_completed = progress['is_completed'] if progress else False
+            if is_completed:
                 user_earned_learning_points += VIDEO_WEIGHT
-
+            else:
+                # เงื่อนไขที่ 1: ถ้ามีวิดีโอที่ยังดูไม่จบ ให้ถือว่าบทเรียนนี้ "ยังไม่สมบูรณ์"
+                current_lesson_is_complete = False
+            
             learning_path_data.append({
-                'type': 'video_content',
-                'video_id': video_row['video_id'],
-                'lesson_id': lesson_row['lesson_id'],
-                'title': f"วิดีโอ: {video_row['title']}",
-                'status': video_status,
-                'is_completed': is_video_completed,
-                'youtube_link': video_row['youtube_link'],
-                'description': video_row['description']
+                'type': 'video_content', 'video_id': video_row['video_id'], 'lesson_id': lesson_row['lesson_id'],
+                'title': f"วิดีโอ: {video_row['title']}", 'status': "ดูแล้ว" if is_completed else "ยังไม่ได้ดู",
+                'is_completed': is_completed, 'youtube_link': video_row['youtube_link'], 'description': video_row['description'],
+                'is_locked': is_locked # เพิ่มสถานะการล็อก
             })
-
-        # เพิ่ม Post-test บทเรียน (ถ้ามี)
-        if lesson_post_test_quiz: # ✅ ใช้ lesson_post_test_quiz
+            
+        # ประมวลผลแบบทดสอบอื่นๆ (ถ้ามี)
+        for other_quiz in lesson_other_quizzes:
             total_possible_learning_points += QUIZ_WEIGHT
-            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                           (current_user.id, lesson_post_test_quiz['quiz_id']))
-            post_test_attempt_lesson = cursor.fetchone()
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1", (current_user.id, other_quiz['quiz_id']))
+            attempt = cursor.fetchone()
+            passed = attempt['passed'] if attempt else False
+            if passed: user_earned_learning_points += QUIZ_WEIGHT
             
-            post_test_status_lesson = "ยังไม่ทำ"
-            post_test_score = post_test_attempt_lesson['score'] if post_test_attempt_lesson and post_test_attempt_lesson['score'] is not None else 0
-            post_test_passed = post_test_attempt_lesson['passed'] if post_test_attempt_lesson and post_test_attempt_lesson['passed'] is not None else False
-
-            if post_test_attempt_lesson:
-                post_test_status_lesson = "ผ่าน" if post_test_passed else "ไม่ผ่าน"
-                if post_test_passed:
-                    user_earned_learning_points += QUIZ_WEIGHT
-            
-            learning_path_data.append({
-                'type': 'post_test_lesson', # ประเภทใหม่สำหรับ Post-test บทเรียน
-                'quiz_id': lesson_post_test_quiz['quiz_id'],
-                'title': lesson_post_test_quiz['title'],
-                'status': post_test_status_lesson,
-                'passed': post_test_passed,
-                'score': post_test_score,
-                'passing_percentage': lesson_post_test_quiz['passing_percentage']
-            })
-        
-        # ✅ เพิ่มแบบทดสอบอื่นๆ ที่ไม่ใช่ Pre/Post-test ของบทเรียน
-        for other_quiz_row in lesson_other_quizzes:
-            total_possible_learning_points += QUIZ_WEIGHT # นับน้ำหนัก
-            
-            # ตรวจสอบผลแบบทดสอบของเนื้อหานั้นๆ
-            other_quiz_status = "ยังไม่ทำ"
-            other_quiz_passed = False
-            user_other_quiz_attempt = None
-            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-                           (current_user.id, other_quiz_row['quiz_id']))
-            user_other_quiz_attempt = cursor.fetchone()
-            
-            other_quiz_score = user_other_quiz_attempt['score'] if user_other_quiz_attempt and user_other_quiz_attempt['score'] is not None else 0
-            other_quiz_passed = user_other_quiz_attempt['passed'] if user_other_quiz_attempt and user_other_quiz_attempt['passed'] is not None else False
-
-            if user_other_quiz_attempt:
-                other_quiz_status = "ผ่าน" if other_quiz_passed else "ไม่ผ่าน"
-                if other_quiz_passed:
-                    user_earned_learning_points += QUIZ_WEIGHT
+            # ปกติแบบทดสอบย่อยไม่นับเป็นเงื่อนไข แต่ถ้าต้องการให้นับ ให้เพิ่มบรรทัด: if not passed: current_lesson_is_complete = False
 
             learning_path_data.append({
-                'type': 'quiz_content', # ใช้ประเภท 'quiz_content'
-                'quiz_id': other_quiz_row['quiz_id'],
-                'title': other_quiz_row['title'],
-                'status': other_quiz_status,
-                'passed': other_quiz_passed,
-                'score': other_quiz_score,
-                'passing_percentage': other_quiz_row['passing_percentage']
+                'type': 'quiz_content', 'quiz_id': other_quiz['quiz_id'], 'title': other_quiz['title'],
+                'status': "ผ่าน" if passed else ("ไม่ผ่าน" if attempt else "ยังไม่ทำ"), 'passed': passed,
+                'score': attempt['score'] if attempt else 0, 'passing_percentage': other_quiz['passing_percentage'],
+                'is_locked': is_locked # เพิ่มสถานะการล็อก
             })
 
+        # ประมวลผล Post-test (ถ้ามี)
+        if lesson_post_test_quiz:
+            total_possible_learning_points += QUIZ_WEIGHT
+            cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1", (current_user.id, lesson_post_test_quiz['quiz_id']))
+            attempt = cursor.fetchone()
+            passed = attempt['passed'] if attempt else False
+            if passed:
+                user_earned_learning_points += QUIZ_WEIGHT
+            else:
+                # เงื่อนไขที่ 2: ถ้า Post-test ยังทำไม่ผ่าน ให้ถือว่าบทเรียนนี้ "ยังไม่สมบูรณ์"
+                current_lesson_is_complete = False
+            
+            learning_path_data.append({
+                'type': 'post_test_lesson', 'quiz_id': lesson_post_test_quiz['quiz_id'], 'title': lesson_post_test_quiz['title'],
+                'status': "ผ่าน" if passed else ("ไม่ผ่าน" if attempt else "ยังไม่ทำ"),
+                'passed': passed, 'score': attempt['score'] if attempt else 0, 'passing_percentage': lesson_post_test_quiz['passing_percentage'],
+                'is_locked': is_locked # เพิ่มสถานะการล็อก
+            })
 
-    # 6. ลบ Post-test หลักสูตรออก (ไม่มีส่วนนี้แล้ว)
-    # ...
+        # *** ขั้นตอนสำคัญที่สุด ***
+        # อัปเดตตัวแปรสำหรับใช้ในลูปรอบถัดไป (ของบทเรียนถัดไป)
+        # ถ้าบทเรียนปัจจุบันจบสมบูรณ์ (True) บทถัดไปจะปลดล็อก
+        previous_lesson_completed = current_lesson_is_complete
 
-    # 7. คำนวณเปอร์เซ็นต์ความคืบหน้ารวม
+    # ========================= END: ส่วนที่แก้ไขและเพิ่มเติม =========================
+
+    # 7. คำนวณเปอร์เซ็นต์ความคืบหน้ารวม (โค้ดเดิม)
     if total_possible_learning_points > 0:
         overall_progress_percentage = (user_earned_learning_points / total_possible_learning_points) * 100
     else:
