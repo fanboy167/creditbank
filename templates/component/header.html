@@ -53,8 +53,8 @@
                     {% else %} {# สำหรับ user ทั่วไป #}
                         <a href="{{ url_for('user_dashboard') }}" class="dropdown-item">Dashboard User</a>
                     {% endif %}
-                    <a href="{{ url_for('edit_profile') }}" class="dropdown-item">แก้ไขโปรไฟล์</a>
-                    <a href="{{ url_for('logout') }}" class="dropdown-item">ออกจากระบบ</a>
+                    <a href="{{ url_for('edit_profile') }}" class="dropdown-item">Edit</a>
+                    <a href="{{ url_for('logout') }}" class="dropdown-item">Logout</a>
                 </div>
             </div>
         {% else %}
