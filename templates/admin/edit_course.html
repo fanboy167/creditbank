@@ -11,7 +11,6 @@
     <label for="course_image" class="form-label d-block">รูปภาพหลักสูตร (ถ้าต้องการเปลี่ยน)</label>
     <input class="form-control" type="file" id="course_image" name="course_image" accept="image/*" onchange="previewImage(event)">
     <div style="max-width: 300px; margin-top: 10px;">
-      {# ✅ แก้ไขตรงนี้: ใช้ 'course_images/' และ course.featured_image #}
       {% if course.featured_image %} 
       <img id="imagePreview" src="{{ url_for('static', filename='course_images/' ~ course.featured_image) }}" alt="รูปภาพหลักสูตร" style="max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
       {% else %}
@@ -21,14 +20,13 @@
   </div>
 
   <div class="mb-3">
-    <label for="course_name" class="form-label">ชื่อหลักสูตร</label>
-    {# ✅ ใช้ course.title แทน course.course_name ตามที่ดึงมาจาก DB #}
-    <input type="text" class="form-control" id="course_name" name="course_name" value="{{ course.title }}" required>
+    <label for="title" class="form-label">ชื่อหลักสูตร</label>
+    <input type="text" class="form-control" id="title" name="title" value="{{ course.title }}" required>
   </div>
 
   <div class="mb-3">
-    <label for="instructor" class="form-label">ผู้สอน</label>
-    <select class="form-select" id="instructor" name="instructor_id" required>
+    <label for="instructor_id" class="form-label">ผู้สอน</label>
+    <select class="form-select" id="instructor_id" name="instructor_id" required>
       <option value="" disabled>-- เลือกผู้สอน --</option>
       {% for instructor in instructors %}
       <option value="{{ instructor.id }}" {% if instructor.id == course.instructor_id %}selected{% endif %}>
@@ -39,11 +37,10 @@
   </div>
 
   <div class="mb-3">
-    <label for="category" class="form-label">หมวดหมู่หลักสูตร</label>
-    <select class="form-select" id="category" name="category_id" required>
+    <label for="category_id" class="form-label">หมวดหมู่หลักสูตร</label>
+    <select class="form-select" id="category_id" name="category_id" required>
       <option value="" disabled>-- เลือกหมวดหมู่ --</option>
       {% for category in categories %}
-      {# ✅ ใช้ categories_id แทน category_id ตามคอลัมน์ใน DB #}
       <option value="{{ category.id }}" {% if category.id == course.categories_id %}selected{% endif %}>
         {{ category.name }}
       </option>
@@ -56,7 +53,6 @@
     <textarea class="form-control" id="description" name="description" rows="4">{{ course.description }}</textarea>
   </div>
 
-  {# ส่วนสำหรับวิดีโอแนะนำ (ตรวจสอบให้ตรงกับ app.py) #}
   <div class="mb-3">
     <label for="featured_video" class="form-label">วิดีโอแนะนำ (ถ้าต้องการเปลี่ยน)</label>
     <input class="form-control" type="file" id="featured_video" name="featured_video" accept="video/*">
@@ -72,14 +68,13 @@
   <div class="mb-3">
     <label for="status" class="form-label">สถานะหลักสูตร</label>
     <select class="form-select" id="status" name="status" required>
-      {# ✅ ตรวจสอบว่าใน DB เก็บ 'publish'/'draft' #}
       <option value="publish" {% if course.status == 'publish' %}selected{% endif %}>เผยแพร่</option>
       <option value="draft" {% if course.status == 'draft' %}selected{% endif %}>ฉบับร่าง</option>
     </select>
   </div>
 
   <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
-  <a href="{{ url_for('course_list') }}" class="btn btn-secondary ms-2">ยกเลิก</a>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary ms-2">ยกเลิก</a>
 </form>
 
 <script>
@@ -93,7 +88,6 @@
       }
       reader.readAsDataURL(input.files[0]);
     } else {
-      // If no file selected, revert to current image or default placeholder
       {% if course.featured_image %}
         preview.src = "{{ url_for('static', filename='course_images/' ~ course.featured_image) }}";
       {% else %}

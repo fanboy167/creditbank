@@ -1710,43 +1710,73 @@ def course_list():
 
 # 🔸 แก้ไขหลักสูตร
 @app.route('/edit_course/<int:course_id>', methods=['GET', 'POST'])
+@login_required 
 def edit_course(course_id):
-    cur = mysql.connection.cursor()
+    # ตรวจสอบสิทธิ์ ว่าเป็น admin หรือ instructor เท่านั้น
+    if current_user.role not in ['admin', 'instructor']:
+        flash('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger')
+        return redirect(url_for('home')) # หรือหน้า dashboard ของ user
+        
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    current_role = current_user.role
 
+    # --- ส่วนจัดการการบันทึกฟอร์ม (POST Request) ---
     if request.method == 'POST':
-        course_name = request.form['course_name']
-        description = request.form['description']
+        # รับข้อมูลจากฟอร์ม
+        title = request.form['title']
         instructor_id = request.form['instructor_id']
         category_id = request.form['category_id']
+        description = request.form['description']
         status = request.form['status']
-
-        cur.execute("""
-            UPDATE courses SET
-                course_name = %s,
-                description = %s,
-                instructor_id = %s,
-                category_id = %s,
-                status = %s
+        
+        # (เพิ่มโค้ดส่วนจัดการอัปโหลดไฟล์รูปภาพและวิดีโอของคุณที่นี่)
+        # ...
+        
+        # อัปเดตข้อมูลในฐานข้อมูล
+        cursor.execute("""
+            UPDATE courses 
+            SET title = %s, instructor_id = %s, categories_id = %s, description = %s, status = %s
             WHERE id = %s
-        """, (course_name, description, instructor_id, category_id, status, course_id))
-
+        """, (title, instructor_id, category_id, description, status, course_id))
+        
         mysql.connection.commit()
-        flash('แก้ไขข้อมูลหลักสูตรเรียบร้อยแล้ว', 'success')
-        return redirect(url_for('course_list'))
+        cursor.close()
+        flash('อัปเดตหลักสูตรเรียบร้อยแล้ว!', 'success')
+        
+        # Redirect กลับไปหน้า dashboard ของแต่ละ role
+        if current_role == 'admin':
+            return redirect(url_for('admin_dashboard')) 
+        else:
+            return redirect(url_for('instructor_dashboard'))
 
-    # ดึงข้อมูลหลักสูตรเดิม
-    cur.execute("SELECT * FROM courses WHERE id = %s", (course_id,))
-    course = cur.fetchone()
+    # --- ส่วนแสดงข้อมูลเดิมในฟอร์ม (GET Request) ---
+    
+    # 1. ดึงข้อมูลของหลักสูตรที่ต้องการแก้ไข
+    cursor.execute("SELECT * FROM courses WHERE id = %s", (course_id,))
+    course_data = cursor.fetchone()
 
-    # ดึง instructor จาก user ที่มี role เป็น instructor
-    cur.execute("SELECT id, first_name, last_name FROM user WHERE role = 'instructor'")
-    instructors = cur.fetchall()
+    # 2. ดึงรายชื่อผู้สอนทั้งหมดเพื่อไปสร้าง dropdown
+    cursor.execute("SELECT id, first_name, last_name FROM instructor")
+    instructors = cursor.fetchall()
 
-    # ดึงหมวดหมู่จากตาราง categories
-    cur.execute("SELECT * FROM categories")
-    categories = cur.fetchall()
+    # 3. ดึงรายชื่อหมวดหมู่ทั้งหมดเพื่อไปสร้าง dropdown
+    cursor.execute("SELECT id, name FROM categories")
+    categories = cursor.fetchall()
 
-    return render_template('admin/edit_course.html', course=course, instructors=instructors, categories=categories)
+    cursor.close()
+
+    if not course_data:
+        flash('ไม่พบหลักสูตรที่ต้องการแก้ไข', 'danger')
+        if current_role == 'admin':
+            return redirect(url_for('admin_dashboard')) 
+        else:
+            return redirect(url_for('instructor_dashboard'))
+
+    # ส่งข้อมูลทั้งหมดไปที่หน้า HTML โดยเลือก template ตาม role ของผู้ใช้
+    return render_template(f'{current_role}/edit_course.html', 
+                           course=course_data, 
+                           instructors=instructors, 
+                           categories=categories)
 
 
 # 🔸 ลบหลักสูตร
