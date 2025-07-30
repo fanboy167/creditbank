@@ -32,9 +32,9 @@
                     {# ✅ ลบไอคอน fa-user-circle ออก #}
                     {# <i class="fa fa-user-circle me-2"></i> #}
                     {% if current_user.profile_image %}
-                        <img src="{{ url_for('static', filename='profile_images/' ~ current_user.profile_image) }}?v={{ now().timestamp() }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
+                        <img src="{{ url_for('static', filename='profile_images/' ~ current_user.profile_image) }}?v={{ current_user.profile_image_version }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
                     {% else %}
-                        <img src="{{ url_for('static', filename='profile_images/default.png') }}?v={{ now().timestamp() }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
+                        <img src="{{ url_for('static', filename='profile_images/default.png') }}?v={{ current_user.profile_image_version }}" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
                     {% endif %}
                     {% if current_user.first_name and current_user.last_name %}
                         {{ current_user.first_name }} {{ current_user.last_name }}

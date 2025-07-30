@@ -95,7 +95,8 @@ class LessonForm(FlaskForm):
 
 
 class User(UserMixin):
-    def __init__(self, id, role, first_name, last_name, username, email, profile_image=None):
+    # แก้ไขโดยการเพิ่ม id_card=None และ gender=None เข้าไปในพารามิเตอร์
+    def __init__(self, id, role, first_name, last_name, username, email, profile_image=None, id_card=None, gender=None):
         self.id = id
         self.role = role
         self.first_name = first_name
@@ -103,7 +104,14 @@ class User(UserMixin):
         self.username = username
         self.email = email
         self.profile_image = profile_image if profile_image else "default.png"
-        self.profile_image_version = datetime.now().timestamp() # ✅ เพิ่ม version สำหรับ cache busting
+        
+        # เพิ่ม 2 บรรทัดนี้เพื่อเก็บค่าที่รับมา
+        self.id_card = id_card
+        self.gender = gender
+
+        # เพิ่มเวอร์ชันสำหรับบังคับให้เบราว์เซอร์โหลดรูปใหม่
+        self.profile_image_version = datetime.now().timestamp()
+        
     def get_id(self):
         return str(self.id)
 # ---------------------------------------------------------------------------------------------
@@ -2655,99 +2663,88 @@ def add_course():
 @app.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    # --- ส่วนกำหนดค่าตาม Role ---
     user_id = current_user.id
     current_role = current_user.role
+    table_name, select_query_columns, update_query_template = None, None, None
 
-    table_name = ""
-    redirect_dashboard_url = ""
-    select_query_columns = ""
-    update_query_template = ""
-    
     if current_role == 'admin':
         table_name = "admin"
-        redirect_dashboard_url = 'admin_dashboard'
-        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role" # ✅ เพิ่ม role
-        update_query_template = """
-            UPDATE admin SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s
-            WHERE id=%s
-        """
+        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role"
+        update_query_template = "UPDATE admin SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s WHERE id=%s"
     elif current_role == 'instructor':
         table_name = "instructor"
-        redirect_dashboard_url = 'instructor_dashboard'
-        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role" # ✅ เพิ่ม role
-        update_query_template = """
-            UPDATE instructor SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s
-            WHERE id=%s
-        """
+        select_query_columns = "id, username, email, first_name, last_name, tel, gender, profile_image, role"
+        update_query_template = "UPDATE instructor SET first_name=%s, last_name=%s, email=%s, username=%s, tel=%s, gender=%s, profile_image=%s WHERE id=%s"
     elif current_role == 'user':
         table_name = "user"
-        redirect_dashboard_url = 'user_dashboard'
-        select_query_columns = "id, username, email, first_name, last_name, id_card, gender, profile_image, role" # ✅ เพิ่ม role
-        update_query_template = """
-            UPDATE user SET first_name=%s, last_name=%s, email=%s, username=%s, id_card=%s, gender=%s, profile_image=%s
-            WHERE id=%s
-        """
-    else:
+        select_query_columns = "id, username, email, first_name, last_name, id_card, gender, profile_image, role"
+        update_query_template = "UPDATE user SET first_name=%s, last_name=%s, email=%s, username=%s, id_card=%s, gender=%s, profile_image=%s WHERE id=%s"
+
+    if not table_name:
         flash("ไม่พบข้อมูลผู้ใช้สำหรับแก้ไข", "danger")
         return redirect(url_for('login'))
 
-
+    # --- ส่วนจัดการฟอร์มเมื่อกดบันทึก (POST) ---
     if request.method == 'POST':
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        username = request.form['username']
-        email = request.form['email']
-        tel = request.form.get('tel')
-        gender = request.form.get('gender')
-        id_card = request.form.get('id_card')
-        
-        profile_image_file = request.files.get('profile_image')
-        
-        cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
-        current_user_data = cursor.fetchone() # ข้อมูลเดิม
-        
-        filename = current_user_data.get('profile_image') # ค่าเริ่มต้นคือรูปเดิม
-
-        if profile_image_file and allowed_file(profile_image_file.filename, ALLOWED_IMAGE_EXTENSIONS):
-            filename = secure_filename(profile_image_file.filename)
-            upload_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER_PROFILE_IMAGES'])
-            os.makedirs(upload_path, exist_ok=True)
-            profile_image_file.save(os.path.join(upload_path, filename))
-            if current_user_data.get('profile_image') and os.path.exists(os.path.join(upload_path, current_user_data['profile_image'])):
-                try: os.remove(os.path.join(upload_path, current_user_data['profile_image']))
-                except Exception as e: print(f"ERROR: Could not delete old profile image: {e}")
-        elif profile_image_file and profile_image_file.filename == '':
-            pass
-
-
-        update_values = []
-        if current_role == 'admin' or current_role == 'instructor':
-            update_values = (first_name, last_name, email, username, tel, gender, filename, user_id)
-        elif current_role == 'user':
-            update_values = (first_name, last_name, email, username, id_card, gender, filename, user_id)
-        
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         try:
+            # 1. รับข้อมูลจากฟอร์มและไฟล์
+            first_name = request.form['first_name']
+            last_name = request.form['last_name']
+            username = request.form['username']
+            email = request.form['email']
+            id_card = request.form.get('id_card') # สำหรับ user
+            tel = request.form.get('tel') # สำหรับ admin/instructor
+            gender = request.form.get('gender')
+
+            profile_image_file = request.files.get('profile_image')
+            cursor.execute(f"SELECT profile_image FROM {table_name} WHERE id = %s", (user_id,))
+            current_user_data = cursor.fetchone()
+            filename = current_user_data.get('profile_image')
+
+            if profile_image_file and allowed_file(profile_image_file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                unique_prefix = f"{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                filename = secure_filename(f"{unique_prefix}_{profile_image_file.filename}")
+                upload_path = os.path.join(app.root_path, app.config['UPLOAD_FOLDER_PROFILE_IMAGES'])
+                os.makedirs(upload_path, exist_ok=True)
+                profile_image_file.save(os.path.join(upload_path, filename))
+
+            # 2. อัปเดตลงฐานข้อมูล
+            update_values = []
+            if current_role in ['admin', 'instructor']:
+                update_values = (first_name, last_name, email, username, tel, gender, filename, user_id)
+            elif current_role == 'user':
+                update_values = (first_name, last_name, email, username, id_card, gender, filename, user_id)
+
             cursor.execute(update_query_template, update_values)
             mysql.connection.commit()
+
+            # --- 3. รีเฟรช Session ทันที ---
+            cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
+            updated_user_data = cursor.fetchone()
+
+            user_obj = None
+            if current_role == 'admin': user_obj = Admin(**updated_user_data)
+            elif current_role == 'instructor': user_obj = Instructor(**updated_user_data)
+            elif current_role == 'user': user_obj = User(**updated_user_data)
+
+            if user_obj:
+                login_user(user_obj, remember=True)
+
             flash('แก้ไขโปรไฟล์เรียบร้อยแล้ว!', 'success')
-            
-            # ✅ รีโหลด current_user object โดยใช้ _update_current_user
-            if not _update_current_user(user_id, current_role, table_name, select_query_columns):
-                flash('เกิดข้อผิดพลาดในการรีโหลดโปรไฟล์', 'danger')
-                print(f"ERROR: Failed to reload current_user for ID {user_id}, Role {current_role}")
-            
-            cursor.close()
-            return redirect(url_for(redirect_dashboard_url))
 
         except Exception as e:
             mysql.connection.rollback()
             flash(f'เกิดข้อผิดพลาดในการบันทึกโปรไฟล์: {str(e)}', 'danger')
-            print(f"ERROR: Profile update failed: {e}")
+        finally:
             cursor.close()
-            return render_template(f'{current_role}/edit_profile.html', user=current_user_data)
 
+        # --- 4. Redirect กลับมาที่หน้าเดิม ---
+        return redirect(url_for('edit_profile'))
 
+    # --- สำหรับการแสดงหน้าเว็บครั้งแรก (GET) ---
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(f"SELECT {select_query_columns} FROM {table_name} WHERE id = %s", (user_id,))
     user_data = cursor.fetchone()
     cursor.close()
@@ -2755,7 +2752,7 @@ def edit_profile():
     if not user_data:
         flash("ไม่พบข้อมูลโปรไฟล์", "danger")
         return redirect(url_for('login'))
-    
+
     return render_template(f'{current_role}/edit_profile.html', user=user_data)
 
 @app.route('/instructor/dashboard')
