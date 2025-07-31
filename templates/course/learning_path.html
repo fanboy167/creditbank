@@ -1,17 +1,14 @@
-{# templates/main/learning_path.html #}
 {% extends 'base.html' %}
 {% block title %}เส้นทางการเรียนรู้: {{ course.title }}{% endblock %}
 
 {% block custom_styles %}
 <style>
-    /* สไตล์สำหรับเนื้อหาที่ถูกล็อก */
     .locked-item {
         opacity: 0.6;
-        background-color: #f8f9fa !important;
-        pointer-events: none; /* ทำให้คลิกไม่ได้ */
+        pointer-events: none;
     }
-    .locked-item .text-muted {
-         pointer-events: auto; /* ทำให้ยัง select ข้อความได้ */
+    .locked-item a, .locked-item button {
+        pointer-events: none;
     }
 </style>
 {% endblock %}
@@ -24,126 +21,84 @@
         <div class="row justify-content-center">
             <div class="col-lg-10 text-center">
                 <h1 class="display-3 text-white animated slideInDown">เส้นทางการเรียนรู้</h1>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb justify-content-center">
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course') }}">Courses</a></li>
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course_detail', course_id=course.id) }}">{{ course.title }}</a></li>
-                        <li class="breadcrumb-item text-white active" aria-current="page">เส้นทางการเรียนรู้</li>
-                    </ol>
-                </nav>
+                <h4 class="text-white">{{ course.title }}</h4>
             </div>
         </div>
     </div>
 </div>
+
 <div class="container-xxl py-5">
     <div class="container">
-        <div class="text-center wow fadeInUp" data-wow-delay="0.1s">
-            <h6 class="section-title bg-white text-center text-primary px-3">Learning Path</h6>
-            <h1 class="mb-5">หลักสูตร: {{ course.title }}</h1>
-        </div>
-
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                {# แสดงเปอร์เซ็นต์ความคืบหน้ารวม #}
                 <div class="mb-4">
-                    <h4 class="mb-2">ความคืบหน้ารวม: {{ "%.2f"|format(overall_progress_percentage) }}%</h4>
-                    <div class="progress" role="progressbar" aria-label="Overall Progress" aria-valuenow="{{ overall_progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
-                        <div class="progress-bar" style="width: {{ overall_progress_percentage }}%"></div>
+                    <h4 class="mb-2">ความคืบหน้ารวม: {{ "%.2f"|format(overall_progress_percentage|default(0)) }}%</h4>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" style="width: {{ overall_progress_percentage|default(0) }}%"></div>
                     </div>
                 </div>
 
                 <div class="list-group">
                     {% for item in learning_path_data %}
-
+                        
+                        {# --- ส่วนแสดงผลเนื้อหาที่ถูกล็อก --- #}
                         {% if item.is_locked %}
-                            {# ถ้าเนื้อหาส่วนนี้ถูกล็อก ให้แสดงผลแบบจางๆ พร้อมไอคอนกุญแจ #}
-                            
                             {% if item.type == 'lesson' %}
-                                {# แสดงหัวข้อบทเรียนที่ถูกล็อก #}
                                 <div class="list-group-item list-group-item-action bg-light p-3 mb-2 rounded shadow-sm locked-item">
                                     <h5 class="mb-1 text-muted"><i class="fas fa-lock me-2"></i>บทเรียน: {{ item.title }}</h5>
-                                    <p class="mb-1 text-muted small">คุณต้องเรียนบทเรียนก่อนหน้านี้ให้จบสมบูรณ์ก่อน</p>
                                 </div>
                             {% else %}
-                                {# แสดงเนื้อหาอื่นๆ ที่ถูกล็อก #}
-                                <div class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3 locked-item">
+                                <div class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-secondary border-3 locked-item">
                                     <h6 class="mb-1 text-muted">
-                                        {% if item.type == 'pre_test_lesson' %}<i class="fas fa-question-circle me-2"></i>
-                                        {% elif item.type == 'video_content' %}<i class="fas fa-video me-2"></i>
-                                        {% elif item.type == 'post_test_lesson' %}<i class="fas fa-clipboard-check me-2"></i>
+                                        {% if 'test' in item.type %}<i class="fas fa-question-circle me-2"></i>
+                                        {% elif 'video' in item.type %}<i class="fas fa-video me-2"></i>
                                         {% endif %}
                                         {{ item.title }}
                                     </h6>
                                 </div>
                             {% endif %}
 
+                        {# --- ส่วนแสดงผลเนื้อหาที่ปลดล็อกแล้ว --- #}
                         {% else %}
-                            {# ถ้าเนื้อหาไม่ถูกล็อก ให้แสดงผลตามปกติ (โค้ดเดิมของคุณ) #}
-
-                            {% if item.type == 'pre_test_course' %}
+                            {% if item.type == 'lesson' %}
                                 <div class="list-group-item list-group-item-action bg-light p-3 mb-2 rounded shadow-sm">
-                                    <div class="d-flex w-100 justify-content-between align-items-center">
-                                        <h5 class="mb-1 text-primary">
-                                            <i class="fas fa-clipboard-list me-2"></i>{{ item.title }}
-                                        </h5>
-                                        <span class="badge bg-{{ 'success' if item.passed else 'danger' if item.status == 'ไม่ผ่าน' else 'warning' }} rounded-pill">{{ item.status }}</span>
-                                    </div>
-                                    <p class="mb-1 text-muted small">คะแนน: {{ item.score }}</p>
-                                    {% if item.status != 'ผ่าน' %}
-                                        <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="btn btn-sm btn-primary mt-2">เริ่มทำแบบทดสอบ</a>
-                                    {% endif %}
+                                    <h5 class="mb-1 text-success"><i class="fas fa-book-open me-2"></i>บทเรียน: {{ item.title }}</h5>
                                 </div>
-                            {% elif item.type == 'lesson' %}
-                                <div class="list-group-item list-group-item-action bg-light p-3 mb-2 rounded shadow-sm">
-                                    <h5 class="mb-1 text-success"><i class="fas fa-book me-2"></i>บทเรียน: {{ item.title }}</h5>
-                                    <p class="mb-1 text-muted small">{{ item.description or 'ไม่มีคำอธิบาย' }}</p>
-                                </div>
-                            {% elif item.type == 'pre_test_lesson' %} {# Pre-test บทเรียน #}
+                            
+                            {# VVVVVV แก้ไขจุดนี้: เปลี่ยน pre_test_course เป็น pre_test_lesson VVVVVV #}
+                            {% elif item.type == 'pre_test_lesson' %}
                                 <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
                                         <h6 class="mb-1"><i class="fas fa-question-circle me-2 text-primary"></i>{{ item.title }}</h6>
-                                        <span class="badge bg-{{ 'success' if item.passed else 'danger' if item.status == 'ไม่ผ่าน' else 'warning' }} rounded-pill">{{ item.status }}</span>
+                                        <span class="badge bg-{{ 'success' if item.passed else 'warning' }} rounded-pill">{{ item.status }}</span>
                                     </div>
                                     <small class="text-muted">เกณฑ์ผ่าน: {{ item.passing_percentage }}%</small>
-                                    {% if item.status != 'ผ่าน' %}
-                                        <div class="mt-2">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">ทำแบบทดสอบ</button>
-                                        </div>
-                                    {% endif %}
                                 </a>
+
                             {% elif item.type == 'video_content' %}
-                                <div class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3">
+                                <a href="{{ url_for('user_view_lesson', lesson_id=item.lesson_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-info border-3">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
                                         <h6 class="mb-1"><i class="fas fa-video me-2 text-info"></i>{{ item.title }}</h6>
                                         <span class="badge bg-{{ 'success' if item.is_completed else 'secondary' }} rounded-pill">{{ item.status }}</span>
                                     </div>
-                                    <small class="text-muted">{{ item.description or 'ไม่มีคำอธิบาย' }}</small>
-                                    <div class="mt-2">
-                                        <a href="{{ url_for('user_view_lesson', lesson_id=item.lesson_id) }}" class="btn btn-sm btn-outline-primary">ดูวิดีโอ</a>
-                                    </div>
-                                </div>
-                            {% elif item.type == 'post_test_lesson' %} {# Post-test บทเรียน #}
-                                <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3">
+                                </a>
+                            
+                            {% elif item.type == 'post_test_lesson' %}
+                                <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-danger border-3">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
                                         <h6 class="mb-1"><i class="fas fa-clipboard-check me-2 text-danger"></i>{{ item.title }}</h6>
-                                        <span class="badge bg-{{ 'success' if item.passed else 'danger' if item.status == 'ไม่ผ่าน' else 'warning' }} rounded-pill">{{ item.status }}</span>
+                                        <span class="badge bg-{{ 'success' if item.passed else 'warning' }} rounded-pill">{{ item.status }}</span>
                                     </div>
                                     <small class="text-muted">เกณฑ์ผ่าน: {{ item.passing_percentage }}%</small>
-                                    {% if item.status != 'ผ่าน' %}
-                                        <div class="mt-2">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">ทำแบบทดสอบ</button>
-                                        </div>
-                                    {% endif %}
                                 </a>
                             {% endif %}
-
                         {% endif %}
-                        {% endfor %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 {% include "component/footer.html" %}
 {% endblock %}

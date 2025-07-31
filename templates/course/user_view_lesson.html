@@ -1,98 +1,67 @@
-{# templates/main/user_view_lesson.html #}
 {% extends 'base.html' %}
 {% block title %}บทเรียน: {{ lesson.lesson_name }}{% endblock %}
+
 {% block content %}
 {% include "component/header.html" %}
 
-<!-- Header Start -->
 <div class="container-fluid bg-primary py-5 mb-5 page-header">
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-lg-10 text-center">
                 <h1 class="display-3 text-white animated slideInDown">{{ lesson.lesson_name }}</h1>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb justify-content-center">
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('home') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course') }}">Courses</a></li>
-                        <li class="breadcrumb-item"><a class="text-white" href="{{ url_for('course_detail', course_id=course.id) }}">{{ course.title }}</a></li>
-                        <li class="breadcrumb-item text-white active" aria-current="page">{{ lesson.lesson_name }}</li>
-                    </ol>
-                </nav>
             </div>
         </div>
     </div>
 </div>
-<!-- Header End -->
 
-<!-- Lesson Content Start -->
 <div class="container-xxl py-5">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-10">
-                <div class="card p-4 shadow-sm mb-4">
-                    <h3 class="mb-3">รายละเอียดบทเรียน</h3>
-                    <p>{{ lesson.description or 'ไม่มีคำอธิบายสำหรับบทเรียนนี้' }}</p>
-
-                    <hr>
-                    <h4 class="mb-3">เนื้อหาบทเรียน</h4>
-
+                <div class="card p-4 shadow-sm">
                     {% if lesson_contents %}
                         {% for content in lesson_contents %}
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    {# ✅ แสดงเฉพาะวิดีโอเท่านั้น (ตามที่แก้ไขใน app.py แล้ว) #}
-                                    {% if not content.quiz_id %} {# ถ้าเป็นวิดีโอ (quiz_id IS NULL) #}
-                                        <h5><i class="fa fa-video text-primary me-2"></i>วิดีโอ: {{ content.title }}</h5>
-                                        {% if content.youtube_link %}
-                                            <div class="ratio ratio-16x9 mb-3">
-                                                {# ให้ ID เฉพาะกับ iframe เพื่อให้ JavaScript ควบคุมได้ #}
-                                                <iframe id="youtube-player-{{ content.video_id }}"
-                                                        src="https://www.youtube.com/embed/{{ content.youtube_link.split('v=')[-1].split('&')[0] }}?enablejsapi=1" 
-                                                        title="YouTube video player" frameborder="0" 
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                                        allowfullscreen
-                                                        data-video-id="{{ content.video_id }}"
-                                                        data-lesson-id="{{ lesson.lesson_id }}"
-                                                        data-course-id="{{ course.id }}"
-                                                        data-is-completed="{{ 'true' if content.is_completed else 'false' }}"> {# ส่งสถานะดูแล้วไปด้วย #}
-                                                </iframe>
-                                            </div>
-                                        {% elif content.video_image %}
-                                            <img src="{{ url_for('static', filename='video_images/' ~ content.video_image) }}" alt="ปกวิดีโอ" class="img-fluid rounded mb-3">
-                                        {% endif %}
-                                        <p>{{ content.description or 'ไม่มีคำอธิบาย' }}</p> 
-                                        <p class="text-muted">ระยะเวลา: {{ content.time_duration or '-' }}</p>
-                                        {# แสดงสถานะการดูวิดีโอ #}
-                                        <div id="video-status-{{ content.video_id }}" class="mt-2">
-                                            {% if content.is_completed %}
-                                                <span class="badge bg-success"><i class="fas fa-check-circle"></i> ดูวิดีโอนี้จบแล้ว</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary"><i class="fas fa-eye"></i> ยังไม่ได้ดูวิดีโอนี้</span>
-                                            {% endif %}
-                                        </div>
+                            <div class="mb-4">
+                                <h5><i class="fa fa-video text-primary me-2"></i>{{ content.title }}</h5>
+                                
+                                <div class="ratio ratio-16x9 mb-3">
+                                    <iframe id="youtube-player-{{ content.video_id }}"
+                                            src="https://www.youtube.com/embed/{{ content.youtube_link.split('v=')[-1].split('&')[0] }}?enablejsapi=1" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+
+                                <div id="status-{{ content.video_id }}">
+                                    {% if content.video_id in completed_video_ids %}
+                                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> ดูจบแล้ว</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="fas fa-eye"></i> ยังไม่ได้ดู</span>
                                     {% endif %}
                                 </div>
                             </div>
+                            <hr>
                         {% endfor %}
                     {% else %}
-                        <p class="text-muted">ยังไม่มีเนื้อหาสำหรับบทเรียนนี้</p>
+                        <p>ยังไม่มีเนื้อหาสำหรับบทเรียนนี้</p>
                     {% endif %}
-
+                    
                     <div class="mt-4 text-center">
-                        <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-secondary px-4">กลับหน้ารายละเอียดหลักสูตร</a>
+                        <a href="{{ url_for('user_learning_path', course_id=course.id) }}" class="btn btn-secondary px-4">กลับสู่เส้นทางการเรียนรู้</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-<!-- Lesson Content End -->
 
 {% include "component/footer.html" %}
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+
 <script>
     // 1. โหลด YouTube Iframe Player API
     var tag = document.createElement('script');
@@ -100,75 +69,53 @@
     var firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    var players = {}; // เก็บ player objects
+    var players = {};
 
-    // 2. ฟังก์ชันนี้จะถูกเรียกเมื่อ YouTube API พร้อม
+    // 2. ฟังก์ชันนี้จะถูกเรียกเมื่อ API พร้อมใช้งาน
     function onYouTubeIframeAPIReady() {
-        // วนลูปหา iframe ทั้งหมดที่มี ID ขึ้นต้นด้วย 'youtube-player-'
         $('iframe[id^="youtube-player-"]').each(function() {
-            var videoId = $(this).data('video-id');
-            var lessonId = $(this).data('lesson-id');
-            var courseId = $(this).data('course-id');
-            var isCompleted = $(this).data('is-completed'); // ดึงสถานะดูแล้ว
-
-            // สร้าง YouTube Player object
-            players[videoId] = new YT.Player('youtube-player-' + videoId, {
+            var iframeId = $(this).attr('id');
+            players[iframeId] = new YT.Player(iframeId, {
                 events: {
-                    'onStateChange': function(event) {
-                        onPlayerStateChange(event, videoId, lessonId, courseId, isCompleted);
-                    }
+                    'onStateChange': onPlayerStateChange
                 }
             });
         });
     }
 
-    // 3. ฟังก์ชันนี้จะถูกเรียกเมื่อสถานะการเล่นวิดีโอเปลี่ยนไป
-    function onPlayerStateChange(event, videoId, lessonId, courseId, isCompleted) {
-        // ตรวจสอบว่าวิดีโอเล่นจบแล้ว (state 0) และยังไม่เคยทำเครื่องหมายว่าดูแล้ว
-        if (event.data === YT.PlayerState.ENDED && isCompleted === false) {
-            console.log('Video ' + videoId + ' has ended. Marking as watched.');
-            markVideoAsWatched(videoId, lessonId, courseId);
+    // 3. ฟังก์ชันนี้จะถูกเรียกเมื่อสถานะวิดีโอเปลี่ยน (เช่น เล่น, หยุด, จบ)
+    function onPlayerStateChange(event) {
+        // ตรวจสอบว่าวิดีโอเล่นจบแล้ว (State 0 คือจบ)
+        if (event.data === YT.PlayerState.ENDED) {
+            var iframe = event.target.getIframe();
+            var videoId = iframe.id.replace('youtube-player-', '');
+            
+            // ส่งข้อมูลไปบันทึกที่เซิร์ฟเวอร์
+            markVideoAsComplete(videoId);
         }
     }
 
-    // 4. ฟังก์ชันสำหรับส่ง AJAX Request ไปยัง Flask เพื่อบันทึกสถานะ
-    function markVideoAsWatched(videoId, lessonId, courseId) {
-        // ตรวจสอบให้แน่ใจว่า user_id มีอยู่ (current_user.id จาก Flask-Login)
-        // ใน Jinja2 เราไม่มี current_user.id โดยตรงใน JS
-        // แต่เราสามารถส่งผ่าน Flask route ได้ หรือใช้ hidden input ใน form
-        // สำหรับตอนนี้ เราจะส่งค่าผ่าน form data ใน AJAX
-        var userId = "{{ current_user.id }}"; // ✅ ดึง user ID จาก Jinja (ต้องแน่ใจว่า current_user.id ถูกส่งมา)
-
-        // ถ้า user_id ไม่ถูกกำหนด (เช่น ผู้ใช้ไม่ได้ล็อกอิน) ไม่ต้องส่ง Request
-        if (!userId || userId === 'None') {
-            console.warn("User not logged in. Cannot mark video as watched.");
-            return;
-        }
-
+    // 4. ฟังก์ชันสำหรับส่ง AJAX Request ไปยัง Flask
+    function markVideoAsComplete(videoId) {
+        console.log("วิดีโอ ID: " + videoId + " เล่นจบแล้ว กำลังส่งข้อมูล...");
+        
         $.ajax({
-            url: "{{ url_for('mark_video_as_watched_auto') }}", // ✅ Endpoint ใหม่
+            url: "{{ url_for('mark_video_as_watched_auto') }}", // เรียกใช้ Endpoint ใหม่
             type: 'POST',
             data: {
-                user_id: userId,
-                video_id: videoId,
-                lesson_id: lessonId,
-                course_id: courseId
+                video_id: videoId
             },
             success: function(response) {
                 if (response.status === 'success') {
-                    console.log('Video ' + videoId + ' marked as watched successfully!');
+                    console.log("บันทึกสำเร็จ!");
                     // อัปเดต UI ทันที
-                    $('#video-status-' + videoId).html('<span class="badge bg-success"><i class="fas fa-check-circle"></i> ดูวิดีโอนี้จบแล้ว</span>');
-                    // ป้องกันการส่งซ้ำ
-                    $('iframe#youtube-player-' + videoId).data('is-completed', true); 
-                    // คุณอาจต้องการรีโหลดหน้าเพื่ออัปเดตเปอร์เซ็นต์รวม หรือส่ง AJAX ไปอัปเดตเปอร์เซ็นต์
-                    // window.location.reload(); // ถ้าต้องการรีโหลดหน้า
+                    $('#status-' + videoId).html('<span class="badge bg-success"><i class="fas fa-check-circle"></i> ดูจบแล้ว</span>');
                 } else {
-                    console.error('Failed to mark video ' + videoId + ' as watched: ' + response.message);
+                    console.error('เกิดข้อผิดพลาดในการบันทึก: ' + response.message);
                 }
             },
-            error: function(xhr, status, error) {
-                console.error('AJAX error: ' + status + ' - ' + error);
+            error: function(xhr) {
+                console.error('AJAX error:', xhr.responseText);
             }
         });
     }
