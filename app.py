@@ -16,8 +16,8 @@ from wtforms import StringField, TextAreaField, DateField, SelectField, IntegerF
 from wtforms.validators import DataRequired, URL, Optional, Length, NumberRange
 import random
 
-UPLOAD_FOLDER_IMAGES = 'static/course_images'
-UPLOAD_FOLDER_VIDEOS = 'static/course_videos'
+UPLOAD_FOLDER_COURSE_IMAGES = 'static/course_images'
+UPLOAD_FOLDER_COURSE_VIDEOS = 'static/course_videos'
 UPLOAD_FOLDER_PROFILE_IMAGES = 'static/profile_images'
 UPLOAD_FOLDER_QUESTION_IMAGES = 'static/question_images'
 UPLOAD_FOLDER_VIDEO_IMAGES = 'static/video_images'
@@ -31,15 +31,15 @@ def allowed_file(filename, allowed_exts):
 app = Flask(__name__) # ✅ app = Flask(__name__) ต้องอยู่ตรงนี้
 
 # ✅ กำหนดค่าเข้า app.config หลัง app = Flask(__name__)
-app.config['UPLOAD_FOLDER_IMAGES'] = UPLOAD_FOLDER_IMAGES
-app.config['UPLOAD_FOLDER_VIDEOS'] = UPLOAD_FOLDER_VIDEOS
+app.config['UPLOAD_FOLDER_COURSE_IMAGES'] = UPLOAD_FOLDER_COURSE_IMAGES
+app.config['UPLOAD_FOLDER_COURSE_VIDEOS'] = UPLOAD_FOLDER_COURSE_VIDEOS
 app.config['UPLOAD_FOLDER_PROFILE_IMAGES'] = UPLOAD_FOLDER_PROFILE_IMAGES
 app.config['UPLOAD_FOLDER_QUESTION_IMAGES'] = UPLOAD_FOLDER_QUESTION_IMAGES
 app.config['UPLOAD_FOLDER_VIDEO_IMAGES'] = UPLOAD_FOLDER_VIDEO_IMAGES
 
 # ✅ สร้างโฟลเดอร์หลังกำหนดใน app.config
-os.makedirs(app.config['UPLOAD_FOLDER_IMAGES'], exist_ok=True)
-os.makedirs(app.config['UPLOAD_FOLDER_VIDEOS'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_COURSE_IMAGES'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_COURSE_VIDEOS'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_PROFILE_IMAGES'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_QUESTION_IMAGES'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_VIDEO_IMAGES'], exist_ok=True)
@@ -157,14 +157,14 @@ class Instructor(UserMixin):
 def load_user(user_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    print(f"\n--- DEBUG: load_user for user_id: {user_id} ---")
+    print(f"\n--- DEBUG: กำลังโหลดผู้ใช้สำหรับ user_id: {user_id} ---")
 
-    # 1. ตรวจสอบใน Admin Table ก่อน
-    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM admin WHERE id = %s', (user_id,))
+    # 1. ตรวจสอบในตาราง Admin ก่อน
+    cursor.execute('SELECT id, username, email, role, first_name, last_name, tel, gender, profile_image FROM admin WHERE id = %s', (user_id,))
     admin_data = cursor.fetchone()
     if admin_data:
         db_role = str(admin_data.get('role', 'admin')).strip()
-        print(f"DEBUG: Found user in 'admin' table. Role: '{db_role}'")
+        print(f"DEBUG: พบผู้ใช้ในตาราง 'admin'. Role: '{db_role}'")
         admin_obj = Admin(
             id=admin_data['id'], role=db_role,
             first_name=admin_data['first_name'], last_name=admin_data['last_name'],
@@ -172,15 +172,14 @@ def load_user(user_id):
             tel=admin_data.get('tel'), gender=admin_data.get('gender'),
             profile_image=admin_data.get('profile_image')
         )
-        admin_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
         return admin_obj
 
-    # 2. ตรวจสอบใน Instructor Table
-    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, tel, gender, profile_image FROM instructor WHERE id = %s', (user_id,))
+    # 2. ตรวจสอบในตาราง Instructor
+    cursor.execute('SELECT id, username, email, role, first_name, last_name, tel, gender, profile_image FROM instructor WHERE id = %s', (user_id,))
     instructor_data = cursor.fetchone()
     if instructor_data:
         db_role = str(instructor_data.get('role', 'instructor')).strip()
-        print(f"DEBUG: Found user in 'instructor' table. Role: '{db_role}'")
+        print(f"DEBUG: พบผู้ใช้ในตาราง 'instructor'. Role: '{db_role}'")
         instructor_obj = Instructor(
             id=instructor_data['id'], role=db_role,
             first_name=instructor_data['first_name'], last_name=instructor_data['last_name'],
@@ -188,23 +187,29 @@ def load_user(user_id):
             tel=instructor_data.get('tel'), gender=instructor_data.get('gender'),
             profile_image=instructor_data.get('profile_image')
         )
-        instructor_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
         return instructor_obj
     
-    # 3. ตรวจสอบใน User Table
-    cursor.execute('SELECT id, username, password, email, role, first_name, last_name, id_card, gender, profile_image FROM user WHERE id = %s', (user_id,))
+    # 3. ตรวจสอบในตาราง User
+    cursor.execute('SELECT id, username, email, role, first_name, last_name, id_card, gender, profile_image FROM user WHERE id = %s', (user_id,))
     user_data = cursor.fetchone()
     if user_data:
         db_role = str(user_data.get('role', 'user')).strip()
-        print(f"DEBUG: Found user in 'user' table. Role: '{db_role}'")
-        user_obj = User(id=user_data['id'], role=db_role,
-                    first_name=user_data['first_name'], last_name=user_data['last_name'],
-                    username=user_data['username'], email=user_data['email'],
-                    profile_image=user_data.get('profile_image'))
-        user_obj.profile_image_version = datetime.now().timestamp() # ✅ ตั้งค่า version
+        print(f"DEBUG: พบผู้ใช้ในตาราง 'user'. Role: '{db_role}'")
+        
+        # VVVVVV จุดที่แก้ไข Bug VVVVVV
+        # โค้ดเดิมขาดการส่งค่า id_card และ gender ตรงนี้
+        user_obj = User(
+            id=user_data['id'], role=db_role,
+            first_name=user_data['first_name'], last_name=user_data['last_name'],
+            username=user_data['username'], email=user_data['email'],
+            id_card=user_data.get('id_card'), 
+            gender=user_data.get('gender'),
+            profile_image=user_data.get('profile_image')
+        )
+        # ^^^^^^ สิ้นสุดจุดที่แก้ไข ^^^^^^
         return user_obj
     
-    print(f"DEBUG: User ID {user_id} not found in any table.")
+    print(f"DEBUG: ไม่พบ User ID {user_id} ในตารางใดๆ")
     cursor.close()
     return None
 
@@ -1647,29 +1652,53 @@ def edit_course(course_id):
     # ตรวจสอบสิทธิ์ ว่าเป็น admin หรือ instructor เท่านั้น
     if current_user.role not in ['admin', 'instructor']:
         flash('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger')
-        return redirect(url_for('home')) # หรือหน้า dashboard ของ user
+        return redirect(url_for('home'))
         
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     current_role = current_user.role
 
     # --- ส่วนจัดการการบันทึกฟอร์ม (POST Request) ---
     if request.method == 'POST':
-        # รับข้อมูลจากฟอร์ม
+        # 1. รับข้อมูลจากฟอร์ม
         title = request.form['title']
         instructor_id = request.form['instructor_id']
         category_id = request.form['category_id']
         description = request.form['description']
         status = request.form['status']
         
-        # (เพิ่มโค้ดส่วนจัดการอัปโหลดไฟล์รูปภาพและวิดีโอของคุณที่นี่)
-        # ...
+        # --- VVVVVV ส่วนที่เพิ่มเข้ามา: จัดการไฟล์ VVVVVV ---
+
+        # 2. ดึงชื่อไฟล์เดิมจากฐานข้อมูลมาก่อน
+        cursor.execute("SELECT featured_image, featured_video FROM courses WHERE id = %s", (course_id,))
+        current_files = cursor.fetchone()
+        image_filename = current_files.get('featured_image')
+        video_filename = current_files.get('featured_video')
+
+        # 3. จัดการรูปภาพใหม่ (ถ้ามี)
+        image_file = request.files.get('course_image')
+        if image_file and image_file.filename != '' and allowed_file(image_file.filename, ALLOWED_IMAGE_EXTENSIONS):
+            # สร้างชื่อไฟล์ใหม่ที่ไม่ซ้ำกัน
+            unique_prefix = f"{course_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            image_filename = secure_filename(f"{unique_prefix}_{image_file.filename}")
+            # บันทึกไฟล์
+            image_file.save(os.path.join(app.config['UPLOAD_FOLDER_COURSE_IMAGES'], image_filename))
+
+        # 4. จัดการวิดีโอใหม่ (ถ้ามี)
+        video_file = request.files.get('featured_video')
+        if video_file and video_file.filename != '' and allowed_file(video_file.filename, ALLOWED_VIDEO_EXTENSIONS):
+            unique_prefix = f"{course_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            video_filename = secure_filename(f"{unique_prefix}_{video_file.filename}")
+            video_file.save(os.path.join(app.config['UPLOAD_FOLDER_COURSE_VIDEOS'], video_filename))
+
+        # --- ^^^^^^ สิ้นสุดส่วนที่เพิ่มเข้ามา ^^^^^^ ---
         
-        # อัปเดตข้อมูลในฐานข้อมูล
+        # 5. อัปเดตข้อมูลในฐานข้อมูล (เพิ่ม featured_image และ featured_video)
         cursor.execute("""
             UPDATE courses 
-            SET title = %s, instructor_id = %s, categories_id = %s, description = %s, status = %s
+            SET title = %s, instructor_id = %s, categories_id = %s, 
+                description = %s, status = %s, featured_image = %s, featured_video = %s
             WHERE id = %s
-        """, (title, instructor_id, category_id, description, status, course_id))
+        """, (title, instructor_id, category_id, description, status, image_filename, video_filename, course_id))
         
         mysql.connection.commit()
         cursor.close()
@@ -1682,19 +1711,13 @@ def edit_course(course_id):
             return redirect(url_for('instructor_dashboard'))
 
     # --- ส่วนแสดงข้อมูลเดิมในฟอร์ม (GET Request) ---
-    
-    # 1. ดึงข้อมูลของหลักสูตรที่ต้องการแก้ไข
+    # (โค้ดส่วนนี้ของคุณถูกต้องแล้ว ไม่ต้องแก้ไข)
     cursor.execute("SELECT * FROM courses WHERE id = %s", (course_id,))
     course_data = cursor.fetchone()
-
-    # 2. ดึงรายชื่อผู้สอนทั้งหมดเพื่อไปสร้าง dropdown
     cursor.execute("SELECT id, first_name, last_name FROM instructor")
     instructors = cursor.fetchall()
-
-    # 3. ดึงรายชื่อหมวดหมู่ทั้งหมดเพื่อไปสร้าง dropdown
     cursor.execute("SELECT id, name FROM categories")
     categories = cursor.fetchall()
-
     cursor.close()
 
     if not course_data:
@@ -1704,7 +1727,6 @@ def edit_course(course_id):
         else:
             return redirect(url_for('instructor_dashboard'))
 
-    # ส่งข้อมูลทั้งหมดไปที่หน้า HTML โดยเลือก template ตาม role ของผู้ใช้
     return render_template(f'{current_role}/edit_course.html', 
                            course=course_data, 
                            instructors=instructors, 
