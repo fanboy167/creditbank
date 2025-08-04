@@ -86,10 +86,8 @@ class QuizSelectionForm(FlaskForm): # ✅ QuizSelectionForm สำหรับ�
 
 class LessonForm(FlaskForm):
     title = StringField('ชื่อบทเรียน', validators=[DataRequired(message="กรุณาระบุชื่อบทเรียน")])
-    description = TextAreaField('รายละเอียดบทเรียน', validators=[Optional()]) # เพิ่ม description กลับมา
+    description = TextAreaField('รายละเอียดบทเรียน', validators=[Optional()])
     lesson_date = DateField('วันที่สร้างบทเรียน', format='%Y-%m-%d', validators=[Optional()])
-    course_id = SelectField('หลักสูตร', coerce=int, validators=[DataRequired(message="กรุณาเลือกหลักสูตร")])
-    instructor_id = SelectField('ผู้สอน', coerce=int, validators=[DataRequired(message="กรุณาเลือกผู้สอน")])
     
 # ---------------------------------------------------------------------------------------------
 
@@ -1831,71 +1829,62 @@ def add_lesson():
     cursor.close()
     return render_template('admin/add_lesson.html', form=form)
 
+# VVVVVV แก้ไขบรรทัดนี้ให้ถูกต้อง VVVVVV
 @app.route('/admin/lesson/edit/<int:lesson_id>', methods=['GET', 'POST'])
 @admin_required
 def edit_lesson(lesson_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลบทเรียน (ลบ 'video_url' ออกจาก SELECT)
-    cursor.execute("SELECT lesson_id, lesson_name, lesson_date, course_id FROM lesson WHERE lesson_id = %s", (lesson_id,))
+    # 1. ดึงข้อมูลบทเรียนและชื่อคอร์ส
+    cursor.execute("""
+        SELECT l.lesson_id, l.lesson_name, l.lesson_date, l.course_id, c.title as course_name
+        FROM lesson l
+        JOIN courses c ON l.course_id = c.id
+        WHERE l.lesson_id = %s
+    """, (lesson_id,))
     lesson_data = cursor.fetchone()
 
     if not lesson_data:
-        flash('ไม่พบบทเรียนที่ระบุ', 'danger')
+        flash('ไม่พบบทเรียน', 'danger')
         cursor.close()
         return redirect(url_for('admin_dashboard'))
 
-    course_id = lesson_data['course_id']
-    cursor.execute("SELECT title FROM courses WHERE id = %s", (course_id,))
-    course_info = cursor.fetchone()
-    course_name_for_template = course_info['title'] if course_info else "ไม่ระบุคอร์ส"
+    # 2. สร้างฟอร์มจาก WTForms
+    form = LessonForm()
 
+    # 3. ส่วนจัดการการบันทึกข้อมูล (POST)
+    if form.validate_on_submit():
+        updated_title = form.title.data
+        updated_lesson_date = form.lesson_date.data
+
+        # อัปเดตเฉพาะ title และ date
+        cursor.execute("""
+            UPDATE lesson SET lesson_name = %s, lesson_date = %s
+            WHERE lesson_id = %s
+        """, (updated_title, updated_lesson_date, lesson_id))
+        
+        mysql.connection.commit()
+        cursor.close()
+        flash('บทเรียนได้รับการแก้ไขเรียบร้อยแล้ว!', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    # 4. ส่วนแสดงข้อมูลครั้งแรก (GET)
+    form.title.data = lesson_data['lesson_name']
+    form.lesson_date.data = lesson_data['lesson_date']
+
+    # 5. สร้าง Object ซ้อนกันเพื่อให้ HTML ของคุณใช้งานได้
     class TempCourse:
         def __init__(self, name, id):
             self.course_name = name
             self.id = id
 
-    class TempLessonForTemplate:
-        def __init__(self, data, course_name, course_id):
+    class TempLesson:
+        def __init__(self, data, course_obj):
             self.id = data['lesson_id']
-            self.lesson_id = data['lesson_id']
-            self.title = data['lesson_name']
-            # ลบบรรทัดนี้ออก: self.video_url = data.get('video_url', '')
-            self.lesson_date = data.get('lesson_date')
-            self.course_id = course_id
-            self.course = TempCourse(course_name, course_id)
+            self.course = course_obj
 
-    lesson_for_template = TempLessonForTemplate(lesson_data, course_name_for_template, course_id)
-
-    # 4. สร้างฟอร์มด้วย Flask-WTF และป้อนข้อมูลเดิม (ลบ 'video_url' ออกจาก form_data)
-    form_data = {
-        'title': lesson_data.get('lesson_name'),
-        # ลบบรรทัดนี้ออก: 'video_url': lesson_data.get('video_url', ''),
-        'lesson_date': lesson_data.get('lesson_date')
-    }
-    form = LessonForm(data=form_data)
-
-    if form.validate_on_submit():
-        updated_title = form.title.data
-        # ลบบรรทัดนี้ออก: updated_video_url = form.video_url.data
-        updated_lesson_date = form.lesson_date.data
-
-        # 6. อัปเดตข้อมูลในฐานข้อมูล (ลบ 'video_url' ออกจาก UPDATE query)
-        cursor.execute("""
-            UPDATE lesson SET
-                lesson_name = %s,
-                lesson_date = %s
-            WHERE lesson_id = %s
-        """, (updated_title, updated_lesson_date, lesson_id))
-        # ตรวจสอบว่าจำนวน %s ใน query (2 ตัว) ตรงกับจำนวน parameter ที่ส่งไป (updated_title, updated_lesson_date, lesson_id) (3 ตัว)
-        # จริงๆ แล้วคือ (updated_title, updated_lesson_date) เป็นตัวแปรที่ใช้กับ %s 2 ตัวแรก
-        # lesson_id ใช้กับ WHERE lesson_id = %s สุดท้าย
-        # ดังนั้น จำนวน parameter ต้องเป็น 3 ตัว (updated_title, updated_lesson_date, lesson_id)
-        # ตัวอย่างข้างบนถูกต้องแล้ว
-
-        mysql.connection.commit()
-        flash('บทเรียนได้รับการแก้ไขเรียบร้อยแล้ว!', 'success')
-        return redirect(url_for('lesson', course_id=lesson_for_template.course_id))
+    course_object = TempCourse(lesson_data['course_name'], lesson_data['course_id'])
+    lesson_for_template = TempLesson(lesson_data, course_object)
 
     cursor.close()
     return render_template('admin/edit_lesson.html', form=form, lesson=lesson_for_template)
