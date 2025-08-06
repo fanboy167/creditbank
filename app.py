@@ -1237,7 +1237,34 @@ def logout():
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
-    return render_template('admin/admin_dashboard.html')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. นับจำนวนผู้ใช้งานทั้งหมด (รวมทุก role)
+    cursor.execute("SELECT COUNT(id) as total FROM user")
+    user_count = cursor.fetchone()['total']
+    
+    cursor.execute("SELECT COUNT(id) as total FROM instructor")
+    instructor_count = cursor.fetchone()['total']
+    
+    cursor.execute("SELECT COUNT(id) as total FROM admin")
+    admin_count = cursor.fetchone()['total']
+    
+    total_users = user_count + instructor_count + admin_count
+
+    # 2. นับจำนวนรายวิชาทั้งหมด
+    cursor.execute("SELECT COUNT(id) as total FROM courses")
+    total_courses = cursor.fetchone()['total']
+
+    # 3. (ตัวอย่าง) ดึงข้อมูลล็อกอินล่าสุด (ถ้ามีตารางเก็บ log)
+    # ในที่นี้จะใช้ข้อมูลสมมติไปก่อน
+    latest_login = "ไม่มีข้อมูล"
+    
+    cursor.close()
+
+    return render_template('admin/admin_dashboard.html',
+                           total_users=total_users,
+                           total_courses=total_courses,
+                           latest_login=latest_login)
 
 @app.route('/admin/manage/admin', methods=['GET', 'POST'])
 def manage_admins():
@@ -1522,14 +1549,63 @@ def delete_user(user_id):
 
 
 @app.route('/admin/attendance/students')
+@admin_required # ใช้ decorator สำหรับ admin
 def attendance_students():
-    # ดึงข้อมูล หรือแค่แสดงหน้าเปล่าก่อนได้
-    return render_template('admin/attendance_students.html')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลการลงทะเบียนทั้งหมดในระบบ
+    # เพิ่มการ JOIN กับตาราง instructor เพื่อดึงชื่อผู้สอนมาแสดงผลด้วย
+    cursor.execute("""
+        SELECT 
+            rc.registered_at,
+            u.first_name,
+            u.last_name,
+            c.title as course_title,
+            i.first_name AS instructor_first_name,
+            i.last_name AS instructor_last_name
+        FROM registered_courses rc
+        JOIN user u ON rc.user_id = u.id
+        JOIN courses c ON rc.course_id = c.id
+        JOIN instructor i ON c.instructor_id = i.id
+        ORDER BY rc.registered_at DESC
+    """)
+    
+    enrollments = cursor.fetchall()
+    cursor.close()
+
+    return render_template('admin/attendance_students.html', enrollments=enrollments)
 
 @app.route('/admin/attendance/exams')
+@admin_required # ใช้ decorator สำหรับ admin
 def attendance_exams():
-    # ดึงข้อมูล หรือแค่แสดงหน้าเปล่าก่อนได้
-    return render_template('admin/attendance_exams.html')
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงประวัติการทำข้อสอบทั้งหมดในระบบ
+    # เพิ่มการ JOIN กับตาราง instructor เพื่อดึงชื่อผู้สอนมาแสดงผลด้วย
+    cursor.execute("""
+        SELECT 
+            u.first_name,
+            u.last_name,
+            c.title AS course_title,
+            q.quiz_name,
+            i.first_name AS instructor_first_name,
+            i.last_name AS instructor_last_name,
+            uqa.attempt_date,
+            uqa.score,
+            uqa.passed
+        FROM user_quiz_attempts uqa
+        JOIN user u ON uqa.user_id = u.id
+        JOIN quiz q ON uqa.quiz_id = q.quiz_id
+        JOIN lesson l ON q.lesson_id = l.lesson_id
+        JOIN courses c ON l.course_id = c.id
+        JOIN instructor i ON c.instructor_id = i.id
+        ORDER BY uqa.attempt_date DESC
+    """)
+    
+    quiz_attempts = cursor.fetchall()
+    cursor.close()
+
+    return render_template('admin/attendance_exams.html', quiz_attempts=quiz_attempts)
 
 @app.route('/admin/categories', methods=['GET', 'POST'])
 @login_required
@@ -2729,17 +2805,165 @@ def edit_profile():
     return render_template(f'{current_role}/edit_profile.html', user=user_data)
 
 @app.route('/instructor/dashboard')
-@instructor_required
+@login_required # ควรใช้ @instructor_required ถ้ามี
 def instructor_dashboard():
-    return render_template('instructor/instructor_dashboard.html')
+    # ตรวจสอบสิทธิ์ว่าเป็นอาจารย์
+    if current_user.role != 'instructor':
+        flash('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger')
+        return redirect(url_for('home'))
+
+    instructor_id = current_user.id
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. นับจำนวนคอร์สทั้งหมดของอาจารย์คนนี้
+    cursor.execute("SELECT COUNT(id) as total FROM courses WHERE instructor_id = %s", (instructor_id,))
+    course_count = cursor.fetchone()['total']
+
+    # 2. นับจำนวนนักเรียนทั้งหมด (ที่ไม่ซ้ำกัน)
+    cursor.execute("""
+        SELECT COUNT(DISTINCT user_id) as total 
+        FROM registered_courses 
+        WHERE course_id IN (SELECT id FROM courses WHERE instructor_id = %s)
+    """, (instructor_id,))
+    student_count = cursor.fetchone()['total']
+
+    # 3. นับจำนวนบทเรียนทั้งหมด
+    cursor.execute("""
+        SELECT COUNT(lesson_id) as total 
+        FROM lesson 
+        WHERE course_id IN (SELECT id FROM courses WHERE instructor_id = %s)
+    """, (instructor_id,))
+    lesson_count = cursor.fetchone()['total']
+
+    # 4. ดึงข้อมูลคอร์สล่าสุด 5 รายการ
+    cursor.execute("""
+        SELECT 
+            c.id, c.title, c.status,
+            (SELECT COUNT(user_id) FROM registered_courses WHERE course_id = c.id) as student_count
+        FROM courses c
+        WHERE c.instructor_id = %s
+        ORDER BY c.id DESC
+        LIMIT 5
+    """, (instructor_id,))
+    recent_courses = cursor.fetchall()
+
+    cursor.close()
+
+    # ส่งข้อมูลทั้งหมดไปที่หน้าเว็บ
+    return render_template('instructor/instructor_dashboard.html',
+                           course_count=course_count,
+                           student_count=student_count,
+                           lesson_count=lesson_count,
+                           recent_courses=recent_courses)
 
 @app.route('/registered_courses')
+@login_required # เพิ่ม decorator เพื่อให้ต้องล็อกอินก่อน
 def registered_courses():
-    return render_template('instructor/registered_courses.html')
+    # ตรวจสอบสิทธิ์ว่าเป็นอาจารย์
+    if current_user.role != 'instructor':
+        flash('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger')
+        return redirect(url_for('home'))
+
+    instructor_id = current_user.id
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึงข้อมูลการลงทะเบียนทั้งหมดที่เกี่ยวข้องกับอาจารย์คนนี้
+    cursor.execute("""
+        SELECT 
+            rc.registered_at,
+            u.id as user_id,
+            u.first_name,
+            u.last_name,
+            c.id as course_id,
+            c.title as course_title
+        FROM registered_courses rc
+        JOIN user u ON rc.user_id = u.id
+        JOIN courses c ON rc.course_id = c.id
+        WHERE c.instructor_id = %s
+        ORDER BY rc.registered_at DESC
+    """, (instructor_id,))
+    enrollments = cursor.fetchall()
+
+    # 2. คำนวณความคืบหน้าสำหรับแต่ละการลงทะเบียน
+    for enrollment in enrollments:
+        user_id = enrollment['user_id']
+        course_id = enrollment['course_id']
+        
+        # นับจำนวนเนื้อหาทั้งหมดในคอร์ส (วิดีโอ + Post-test)
+        cursor.execute("""
+            SELECT COUNT(qv.video_id) 
+            FROM quiz_video qv 
+            JOIN lesson l ON qv.lesson_id = l.lesson_id 
+            WHERE l.course_id = %s
+        """, (course_id,))
+        total_items_result = cursor.fetchone()
+        total_items = total_items_result['COUNT(qv.video_id)'] if total_items_result else 0
+
+        # นับจำนวนวิดีโอที่ดูจบแล้ว
+        cursor.execute("""
+            SELECT COUNT(uvp.id) 
+            FROM user_video_progress uvp
+            JOIN quiz_video qv ON uvp.video_id = qv.video_id
+            JOIN lesson l ON qv.lesson_id = l.lesson_id
+            WHERE uvp.user_id = %s AND l.course_id = %s
+        """, (user_id, course_id))
+        completed_videos_result = cursor.fetchone()
+        completed_videos = completed_videos_result['COUNT(uvp.id)'] if completed_videos_result else 0
+
+        # นับจำนวน Post-test ที่ทำผ่านแล้ว
+        cursor.execute("""
+            SELECT COUNT(uqa.id)
+            FROM user_quiz_attempts uqa
+            JOIN quiz q ON uqa.quiz_id = q.quiz_id
+            JOIN lesson l ON q.lesson_id = l.lesson_id
+            WHERE uqa.user_id = %s AND l.course_id = %s AND q.quiz_type = 'Post_test' AND uqa.passed = 1
+        """, (user_id, course_id))
+        passed_post_tests_result = cursor.fetchone()
+        passed_post_tests = passed_post_tests_result['COUNT(uqa.id)'] if passed_post_tests_result else 0
+
+        completed_items = completed_videos + passed_post_tests
+        
+        progress = (completed_items / total_items) * 100 if total_items > 0 else 0
+        enrollment['progress'] = progress
+
+    cursor.close()
+
+    return render_template('instructor/registered_courses.html', enrollments=enrollments)
 
 @app.route('/instructor/attendance/exams')
+@login_required
 def instructor_attendance_exams():
-    return render_template('instructor/attendance_exams.html')
+    if current_user.role != 'instructor':
+        flash('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger')
+        return redirect(url_for('home'))
+
+    instructor_id = current_user.id
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # VVVVVV แก้ไข Query: เพิ่ม l.lesson_name เข้าไปใน SELECT VVVVVV
+    cursor.execute("""
+        SELECT 
+            u.first_name,
+            u.last_name,
+            c.title AS course_title,
+            l.lesson_name, 
+            q.quiz_name,
+            uqa.attempt_date,
+            uqa.score,
+            uqa.passed
+        FROM user_quiz_attempts uqa
+        JOIN user u ON uqa.user_id = u.id
+        JOIN quiz q ON uqa.quiz_id = q.quiz_id
+        JOIN lesson l ON q.lesson_id = l.lesson_id
+        JOIN courses c ON l.course_id = c.id
+        WHERE c.instructor_id = %s
+        ORDER BY uqa.attempt_date DESC
+    """, (instructor_id,))
+    
+    quiz_attempts = cursor.fetchall()
+    cursor.close()
+
+    return render_template('instructor/attendance_exams.html', quiz_attempts=quiz_attempts)
 
 @app.route('/instructor/categories', methods=['GET', 'POST'])
 @instructor_required # ✅ แก้ไข: ใช้ @instructor_required เพื่อให้เฉพาะ Instructor เข้าถึงได้
@@ -3885,8 +4109,74 @@ def instructor_edit_lesson(lesson_id): # ✅ เปลี่ยนชื่อ�
 
 
 @app.route('/user/dashboard')
+@login_required
 def user_dashboard():
-    return render_template('user/user_dashboard.html')
+    user_id = current_user.id
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ดึงข้อมูลคอร์สทั้งหมดที่ผู้ใช้ลงทะเบียน
+    cursor.execute("""
+        SELECT c.id, c.title, c.featured_image, i.first_name, i.last_name
+        FROM courses c
+        JOIN registered_courses rc ON c.id = rc.course_id
+        JOIN instructor i ON c.instructor_id = i.id
+        WHERE rc.user_id = %s
+        ORDER BY rc.registered_at DESC
+    """, (user_id,))
+    enrolled_courses = cursor.fetchall()
+
+    # 2. คำนวณความคืบหน้าโดยรวม
+    total_progress_sum = 0
+    if enrolled_courses:
+        for course in enrolled_courses:
+            course_id = course['id']
+            
+            # --- Logic การคำนวณ Progress (เหมือนในหน้า Learning Path) ---
+            # นับจำนวนเนื้อหาทั้งหมดในคอร์ส (วิดีโอ + Post-test)
+            cursor.execute("""
+                SELECT COUNT(qv.video_id) as total
+                FROM quiz_video qv 
+                JOIN lesson l ON qv.lesson_id = l.lesson_id 
+                WHERE l.course_id = %s
+            """, (course_id,))
+            total_items = cursor.fetchone()['total']
+
+            # นับจำนวนวิดีโอที่ดูจบแล้ว
+            cursor.execute("""
+                SELECT COUNT(uvp.id) as total
+                FROM user_video_progress uvp
+                JOIN quiz_video qv ON uvp.video_id = qv.video_id
+                JOIN lesson l ON qv.lesson_id = l.lesson_id
+                WHERE uvp.user_id = %s AND l.course_id = %s
+            """, (user_id, course_id))
+            completed_videos = cursor.fetchone()['total']
+
+            # นับจำนวน Post-test ที่ทำผ่านแล้ว
+            cursor.execute("""
+                SELECT COUNT(uqa.id) as total
+                FROM user_quiz_attempts uqa
+                JOIN quiz q ON uqa.quiz_id = q.quiz_id
+                JOIN lesson l ON q.lesson_id = l.lesson_id
+                WHERE uqa.user_id = %s AND l.course_id = %s AND q.quiz_type = 'Post_test' AND uqa.passed = 1
+            """, (user_id, course_id))
+            passed_post_tests = cursor.fetchone()['total']
+
+            completed_items = completed_videos + passed_post_tests
+            
+            course_progress = (completed_items / total_items) * 100 if total_items > 0 else 0
+            total_progress_sum += course_progress
+        
+        # หาค่าเฉลี่ย
+        overall_average_progress = total_progress_sum / len(enrolled_courses)
+    else:
+        overall_average_progress = 0
+
+    cursor.close()
+
+    return render_template('user/user_dashboard.html',
+                           enrolled_courses_count=len(enrolled_courses),
+                           recent_courses=enrolled_courses[:5], # แสดงแค่ 5 คอร์สล่าสุด
+                           overall_average_progress=overall_average_progress)
 
 
 

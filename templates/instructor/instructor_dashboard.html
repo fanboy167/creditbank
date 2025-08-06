@@ -1,57 +1,85 @@
-{% extends 'instructor/instructor_layout.html' %}
+{% extends "instructor/instructor_layout.html" %} {# หรือ Layout หลักของคุณ #}
 
 {% block title %}แดชบอร์ดอาจารย์{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">แดชบอร์ดอาจารย์</h1>
+<h2 class="mb-4">แดชบอร์ดอาจารย์</h2>
 
-<div class="row row-cols-1 row-cols-md-3 g-4">
-
-  <!-- ผู้ใช้งานทั้งหมด -->
-  <div class="col">
-    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-      <div class="card-body">
-        <i class="fas fa-users fa-3x text-primary mb-3"></i>
-        <h5 class="card-title">ผู้ใช้งานทั้งหมด</h5>
-        <p class="display-6 fw-bold mb-0">{{ user_count }}</p>
-      </div>
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-book-open fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">คอร์สของฉัน</h5>
+                <p class="card-text fs-1 fw-bold">{{ course_count }}</p>
+                <a href="#" class="btn btn-outline-primary">จัดการคอร์ส</a>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- รายวิชาทั้งหมด -->
-  <div class="col">
-    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-      <div class="card-body">
-        <i class="fas fa-book fa-3x text-success mb-3"></i>
-        <h5 class="card-title">รายวิชาทั้งหมด</h5>
-        <p class="display-6 fw-bold mb-0">{{ course_count }}</p>
-      </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x text-success mb-3"></i>
+                <h5 class="card-title">นักเรียนทั้งหมด</h5>
+                <p class="card-text fs-1 fw-bold">{{ student_count }}</p>
+                <a href="#" class="btn btn-outline-success">ดูรายชื่อ</a>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- ล็อกอินล่าสุด -->
-  <div class="col">
-    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-      <div class="card-body">
-        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
-        <h5 class="card-title">ล็อกอินล่าสุด</h5>
-        {% if latest_users %}
-          <ul class="list-unstyled small mb-0">
-            {% for user in latest_users %}
-              <li>
-                {{ user.first_name }} {{ user.last_name }}<br>
-                <span class="text-muted">{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
-              </li>
-              {% if not loop.last %}<hr class="my-2">{% endif %}
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted">ไม่มีข้อมูล</p>
-        {% endif %}
-      </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-list-alt fa-3x text-info mb-3"></i>
+                <h5 class="card-title">บทเรียนทั้งหมด</h5>
+                <p class="card-text fs-1 fw-bold">{{ lesson_count }}</p>
+                <a href="#" class="btn btn-outline-info">จัดการบทเรียน</a>
+            </div>
+        </div>
     </div>
-  </div>
-
 </div>
 
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0">คอร์สที่จัดการล่าสุด</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ชื่อคอร์ส</th>
+                        <th>จำนวนนักเรียน</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in recent_courses %}
+                    <tr>
+                        <td>{{ course.title }}</td>
+                        <td>{{ course.student_count }} คน</td>
+                        <td>
+                            {% if course.status == 'publish' %}
+                                <span class="badge bg-success">เผยแพร่แล้ว</span>
+                            {% else %}
+                                <span class="badge bg-secondary">ฉบับร่าง</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('edit_course', course_id=course.id) }}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i> แก้ไข
+                            </a>
+                            {# เพิ่มลิงก์ไปหน้าจัดการบทเรียน ถ้ามี #}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">คุณยังไม่ได้สร้างคอร์ส</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

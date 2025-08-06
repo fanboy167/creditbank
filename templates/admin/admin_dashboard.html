@@ -1,83 +1,47 @@
-{% extends 'admin/admin_layout.html' %}
+{% extends "admin/admin_layout.html" %}
 
-{% block title %}
-  แดชบอร์ดผู้ดูแลระบบ
-{% endblock %}
+{% block title %}แดชบอร์ดผู้ดูแลระบบ{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">แดชบอร์ดผู้ดูแลระบบ</h1>
-  {% with messages=get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul class="flashes">
-        {% for category, message in messages %}
-          <script type="text/javascript">
-            const Toast = Swal.mixin({
-              toast: true,
-              position: 'top-end',
-              showConfirmButton: false,
-              timer: 3000,
-              timerProgressBar: true,
-              didOpen: (toast) => {
-                toast.onmouseenter = Swal.stopTimer
-                toast.onmouseleave = Swal.resumeTimer
-              }
-            })
-            Toast.fire({
-              icon: '{{category}}',
-              title: '{{message}}'
-            })
-          </script>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+<h2 class="mb-4">แดชบอร์ดผู้ดูแลและระบบ</h2>
 
-<div class="row row-cols-1 row-cols-md-3 g-4">
-  <!-- ผู้ใช้งานทั้งหมด -->
-  <div class="col">
-    <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-      <div class="card-body">
-        <i class="fas fa-users fa-3x text-primary mb-3"></i>
-        <h5 class="card-title">ผู้ใช้งานทั้งหมด</h5>
-        <p class="display-6 fw-bold mb-0">{{ user_count }}</p>
+<div class="row g-4">
+    <!-- การ์ด: ผู้ใช้งานทั้งหมด -->
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">ผู้ใช้งานทั้งหมด</h5>
+                <p class="card-text fs-1 fw-bold">{{ total_users }}</p>
+                {# เพิ่มลิงก์ไปยังหน้าจัดการผู้ใช้ ถ้ามี #}
+                <a href="#" class="btn btn-outline-primary">จัดการผู้ใช้งาน</a>
+            </div>
         </div>
-      </div>
     </div>
 
-    <!-- รายวิชาทั้งหมด -->
-    <div class="col">
-      <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-        <div class="card-body">
-          <i class="fas fa-book fa-3x text-success mb-3"></i>
-          <h5 class="card-title">รายวิชาทั้งหมด</h5>
-          <p class="display-6 fw-bold mb-0">{{ course_count }}</p>
+    <!-- การ์ด: รายวิชาทั้งหมด -->
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-book fa-3x text-success mb-3"></i>
+                <h5 class="card-title">รายวิชาทั้งหมด</h5>
+                <p class="card-text fs-1 fw-bold">{{ total_courses }}</p>
+                {# เพิ่มลิงก์ไปยังหน้าจัดการคอร์ส ถ้ามี #}
+                <a href="#" class="btn btn-outline-success">จัดการรายวิชา</a>
+            </div>
         </div>
-      </div>
     </div>
 
-    <!-- ล็อกอินล่าสุด -->
-    <div class="col">
-      <div class="card shadow-sm rounded-4 text-center p-4 border-0 h-100">
-        <div class="card-body">
-          <i class="fas fa-clock fa-3x text-warning mb-3"></i>
-          <h5 class="card-title">ล็อกอินล่าสุด</h5>
-          {% if latest_users %}
-            <ul class="list-unstyled small mb-0">
-              {% for user in latest_users %}
-                <li>
-                  {{ user.first_name }} {{ user.last_name }}<br />
-                  <span class="text-muted">{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
-                </li>
-                {% if not loop.last %}
-                  <hr class="my-2" />
-                {% endif %}
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="text-muted">ไม่มีข้อมูล</p>
-          {% endif %}
+    <!-- การ์ด: ล็อกอินล่าสุด -->
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">ล็อกอินล่าสุด</h5>
+                <p class="card-text fs-4">{{ latest_login }}</p>
+                <a href="#" class="btn btn-outline-warning">ดูประวัติ</a>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+</div>
 {% endblock %}
