@@ -1,0 +1,57 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}แก้ไขคำถาม{% endblock %}
+
+{% block content %}
+<h2>แก้ไขคำถาม</h2>
+
+<form method="POST" enctype="multipart/form-data">
+
+    <div class="mb-3">
+        <label for="question_name" class="form-label">ข้อคำถาม</label>
+        <textarea name="question_name" class="form-control" required>{{ question.question_name }}</textarea>
+    </div>
+
+    <div class="mb-3">
+        <label for="question_image" class="form-label">รูปภาพประกอบคำถาม</label>
+        {% if question.question_image %}
+            <p>รูปปัจจุบัน: <img src="{{ url_for('static', filename='question_images/' + question.question_image) }}" height="100"></p>
+        {% endif %}
+        <input type="file" name="question_image" class="form-control" accept="image/*">
+        <small class="form-text text-muted">เลือกไฟล์ใหม่เพื่อเปลี่ยนแปลง (ถ้าไม่เลือกจะใช้รูปเดิม)</small>
+    </div>
+
+    <hr>
+
+    <div class="mb-3">
+        <label class="form-label">ตัวเลือก A</label>
+        <input type="text" name="choice_a" class="form-control" value="{{ question.choice_a }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">ตัวเลือก B</label>
+        <input type="text" name="choice_b" class="form-control" value="{{ question.choice_b }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">ตัวเลือก C</label>
+        <input type="text" name="choice_c" class="form-control" value="{{ question.choice_c }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">ตัวเลือก D</label>
+        <input type="text" name="choice_d" class="form-control" value="{{ question.choice_d }}" required>
+    </div>
+
+    <hr>
+
+    <div class="mb-3">
+        <label class="form-label">คำตอบที่ถูกต้อง</label>
+        <select name="correct_answer" class="form-select" required>
+            <option value="a" {% if question.correct_answer == 'a' %}selected{% endif %}>A</option>
+            <option value="b" {% if question.correct_answer == 'b' %}selected{% endif %}>B</option>
+            <option value="c" {% if question.correct_answer == 'c' %}selected{% endif %}>C</option>
+            <option value="d" {% if question.correct_answer == 'd' %}selected{% endif %}>D</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">ยกเลิก</a>
+</form>
+{% endblock %}

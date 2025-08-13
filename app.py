@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, session, request,  make_response, current_app, jsonify 
+from flask import Flask, render_template, redirect, url_for, flash, session, request,  make_response, current_app, jsonify, send_file 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_session import Session
 from flask_mysqldb import MySQL
@@ -16,6 +16,10 @@ from wtforms import StringField, TextAreaField, DateField, SelectField, IntegerF
 from wtforms.validators import DataRequired, URL, Optional, Length, NumberRange
 import random
 from fpdf import FPDF
+import io
+from PIL import Image, ImageDraw, ImageFont
+import locale
+
 
 UPLOAD_FOLDER_COURSE_IMAGES = 'static/course_images'
 UPLOAD_FOLDER_COURSE_VIDEOS = 'static/course_videos'
@@ -30,6 +34,8 @@ def allowed_file(filename, allowed_exts):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
 
 app = Flask(__name__) # ✅ app = Flask(__name__) ต้องอยู่ตรงนี้
+
+locale.setlocale(locale.LC_TIME, 'th_TH.UTF-8')
 
 # ✅ กำหนดค่าเข้า app.config หลัง app = Flask(__name__)
 app.config['UPLOAD_FOLDER_COURSE_IMAGES'] = UPLOAD_FOLDER_COURSE_IMAGES
@@ -309,6 +315,42 @@ def inject_now():
     return {'now': datetime.now}
 
 # ---------------------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------------------
+@app.context_processor
+def utility_processor():
+    def get_youtube_embed_url(youtube_link):
+        """
+        ฟังก์ชันนี้จะรับลิงก์ YouTube ทุกรูปแบบ
+        แล้วแปลงให้เป็นลิงก์สำหรับฝัง (embed) ที่ถูกต้อง
+        """
+        if not youtube_link:
+            return ""
+
+        # รูปแบบที่ 1: https://www.youtube.com/watch?v=VIDEO_ID
+        match = re.search(r"watch\?v=([a-zA-Z0-9_-]+)", youtube_link)
+        if match:
+            video_id = match.group(1)
+            return f"https://www.youtube.com/embed/{video_id}"
+
+        # รูปแบบที่ 2: https://youtu.be/VIDEO_ID
+        match = re.search(r"youtu\.be/([a-zA-Z0-9_-]+)", youtube_link)
+        if match:
+            video_id = match.group(1)
+            return f"https://www.youtube.com/embed/{video_id}"
+
+        # รูปแบบที่ 3: https://www.youtube.com/embed/VIDEO_ID (ถ้าลิงก์ถูกต้องอยู่แล้ว)
+        if "embed/" in youtube_link:
+            return youtube_link
+
+        # ถ้าไม่ตรงกับรูปแบบไหนเลย
+        return "" # หรือจะ return URL แจ้งเตือนข้อผิดพลาดก็ได้
+        
+    return dict(get_youtube_embed_url=get_youtube_embed_url)
+
+# ---------------------------------------------------------------------------------------------
+
 
 # Routes ต่าง ๆ
 @app.route('/')
@@ -656,18 +698,19 @@ def join_course(course_id):
         cursor.close()
         return redirect(url_for('course_detail', course_id=course_id))
     
+# แก้ไขฟังก์ชันนี้ใน app.py ของคุณ
 @app.route('/user/course/<int:course_id>/learning_path')
 @login_required
 def user_learning_path(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลหลักสูตร
+    # 1. ดึงข้อมูลหลักสูตร (เหมือนเดิม)
     query = """
     SELECT
-      c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
-      cat.id AS category_id, cat.name AS category_name,
-      i.id AS instructor_id, i.first_name, i.last_name,
-      c.status
+        c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
+        cat.id AS category_id, cat.name AS category_name,
+        i.id AS instructor_id, i.first_name, i.last_name,
+        c.status
     FROM courses c
     LEFT JOIN categories cat ON c.categories_id = cat.id
     LEFT JOIN instructor i ON c.instructor_id = i.id
@@ -690,14 +733,14 @@ def user_learning_path(course_id):
         'status': course_data.get('status')
     }
 
-    # 2. ตรวจสอบการลงทะเบียน
+    # 2. ตรวจสอบการลงทะเบียน (เหมือนเดิม)
     cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
     if not cursor.fetchone():
         flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
         cursor.close()
         return redirect(url_for('course_detail', course_id=course_id))
 
-    # 3. ดึงบทเรียนทั้งหมด
+    # 3. ดึงบทเรียนและคำนวณความคืบหน้า (เหมือนเดิม)
     cursor.execute("SELECT lesson_id, lesson_name, description FROM lesson WHERE course_id = %s ORDER BY lesson_id ASC", (course_id,))
     lessons_raw = cursor.fetchall()
 
@@ -718,9 +761,10 @@ def user_learning_path(course_id):
             'is_locked': is_locked
         })
         
+        # ... (โค้ด for loop ของคุณส่วนที่เหลือเหมือนเดิมทั้งหมด) ...
         cursor.execute("SELECT video_id, title, youtube_link, description, time_duration, quiz_id FROM quiz_video WHERE lesson_id = %s ORDER BY video_id ASC", (lesson_row['lesson_id'],))
         contents_raw = cursor.fetchall()
-
+        # ... (และโค้ดทั้งหมดที่อยู่ข้างใน for loop นี้) ...
         lesson_pre_test_quiz = None
         lesson_post_test_quiz = None
         lesson_videos = []
@@ -787,16 +831,39 @@ def user_learning_path(course_id):
 
         previous_lesson_completed = current_lesson_is_complete
 
+
     if total_possible_learning_points > 0:
         overall_progress_percentage = (user_earned_learning_points / total_possible_learning_points) * 100
     else:
         overall_progress_percentage = 0.0
 
+    # 4. --- VVVVVV เพิ่มโค้ดส่วนนี้เข้าไป VVVVVV ---
+    is_course_completed = False
+    if overall_progress_percentage >= 100:
+        # ตั้งค่าสถานะว่าจบคอร์สแล้ว
+        is_course_completed = True
+        
+        # ตรวจสอบว่าเคยบันทึกการจบหลักสูตรนี้แล้วหรือยัง
+        cursor.execute("SELECT id FROM course_completions WHERE user_id = %s AND course_id = %s", (current_user.id, course_id))
+        if not cursor.fetchone():
+            # ถ้ายังไม่เคยบันทึก ให้เพิ่มข้อมูลใหม่
+            certificate_code = f"CERT-{course_id}-{current_user.id}-{int(datetime.now().timestamp())}"
+            cursor.execute("""
+                INSERT INTO course_completions (user_id, course_id, completion_date, certificate_code)
+                VALUES (%s, %s, %s, %s)
+            """, (current_user.id, course_id, datetime.now().date(), certificate_code))
+            mysql.connection.commit()
+            flash('ยินดีด้วย! คุณเรียนจบหลักสูตรนี้แล้ว สามารถดาวน์โหลดใบประกาศได้เลย', 'success')
+    # ^^^^^^ สิ้นสุดส่วนที่เพิ่ม ^^^^^^
+
     cursor.close()
+    
+    # 5. แก้ไข return statement ให้ส่งตัวแปร is_course_completed ไปด้วย
     return render_template('course/learning_path.html', 
                            course=course_for_template, 
                            learning_path_data=learning_path_data,
-                           overall_progress_percentage=overall_progress_percentage)
+                           overall_progress_percentage=overall_progress_percentage,
+                           is_course_completed=is_course_completed) # <--- เพิ่มตัวแปรนี้
     
 @app.route('/user/video/mark_watched', methods=['POST'])
 @login_required
@@ -944,77 +1011,96 @@ def start_quiz(quiz_id):
     cursor.close()
     return render_template('course/quiz_page.html', quiz=quiz, questions=questions)
 
-@app.route('/quiz/submit/<int:quiz_id>', methods=['POST'])
+@app.route('/quiz/<int:quiz_id>')
 @login_required
-def submit_quiz(quiz_id):
-    # --- DEBUG POINT 1: เช็คว่าฟังก์ชันถูกเรียกใช้หรือไม่ ---
-    print("\n\n" + "="*50)
-    print(f"--- DEBUG: เข้าสู่ฟังก์ชัน submit_quiz (quiz_id: {quiz_id}) ---")
-    print("="*50)
-
+def take_quiz(quiz_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # ดึงข้อมูลแบบทดสอบ
-    cursor.execute("SELECT quiz_id, quiz_name, passing_percentage, lesson_id, quiz_type FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    # 1. ดึงข้อมูลแบบทดสอบ (เช่น ชื่อ, เกณฑ์ผ่าน)
+    cursor.execute("SELECT * FROM quiz WHERE quiz_id = %s", (quiz_id,))
     quiz = cursor.fetchone()
-
     if not quiz:
-        flash('แบบทดสอบไม่ถูกต้อง', 'danger')
-        cursor.close()
-        return redirect(url_for('user_dashboard'))
+        flash('ไม่พบแบบทดสอบนี้', 'danger')
+        return redirect(url_for('home'))
 
-    # --- DEBUG POINT 2: เช็คข้อมูล Quiz ที่ดึงมาได้ ---
-    print(f"--- DEBUG: ข้อมูล Quiz ที่ดึงได้: {quiz} ---")
-    print(f"--- DEBUG: ประเภทของ Quiz คือ: '{quiz.get('quiz_type')}' ---")
-
-    # --- ส่วนคำนวณคะแนน ---
-    cursor.execute("SELECT question_id, correct_answer, score FROM questions WHERE quiz_id = %s", (quiz_id,))
-    questions_data = cursor.fetchall()
-    user_score = 0
-    total_score_possible = sum(q['score'] for q in questions_data) if questions_data else 0
+    # 2. ดึงคำถามทั้งหมดจากตาราง questions ที่มีโครงสร้างถูกต้อง
+    cursor.execute("SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_id", (quiz_id,))
+    questions = cursor.fetchall()
     
-    for question in questions_data:
-        user_answer = request.form.get(f'question_{question["question_id"]}')
-        if user_answer and user_answer.lower() == question['correct_answer'].lower():
-            user_score += question['score']
-            
-    percentage_score = (user_score / total_score_possible) * 100 if total_score_possible > 0 else 0
-    passed = percentage_score >= quiz.get('passing_percentage', 101)
-
-    # --- DEBUG POINT 3: เช็คคะแนนและผลลัพธ์ก่อนบันทึก ---
-    print(f"--- DEBUG: User ID: {current_user.id}, Quiz ID: {quiz_id}, Score: {user_score}, Passed: {passed} ---")
-
-    # --- ส่วนบันทึกผลสอบ ---
-    try:
-        print("--- DEBUG: กำลังจะ INSERT ข้อมูลลง user_quiz_attempts... ---")
-        cursor.execute("""
-            INSERT INTO user_quiz_attempts (user_id, quiz_id, score, passed, attempt_date)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (current_user.id, quiz_id, user_score, passed, datetime.now()))
-        mysql.connection.commit()
-        
-        print("--- DEBUG: การ commit() สำเร็จ! ข้อมูลถูกบันทึกลงฐานข้อมูลแล้ว ---")
-        flash(f"ทำแบบทดสอบเสร็จสิ้น! คะแนน: {user_score}", 'success')
-
-    except Exception as e:
-        mysql.connection.rollback()
-        print(f"--- !!! ERROR !!!: เกิดข้อผิดพลาดตอนบันทึกข้อมูล: {e} ---")
-        flash(f"เกิดข้อผิดพลาดในการบันทึกผล: {str(e)}", 'danger')
+    cursor.close()
     
-    # --- ส่วน Redirect ---
-    cursor.execute("SELECT course_id FROM lesson WHERE lesson_id = %s", (quiz['lesson_id'],))
-    lesson_info = cursor.fetchone()
-    course_id = lesson_info['course_id'] if lesson_info else None
+    # ส่งข้อมูลไปที่หน้า quiz_page.html
+    return render_template('main/quiz_page.html', quiz=quiz, questions=questions)
+
+@app.route('/submit_quiz/<int:quiz_id>', methods=['POST'])
+@login_required
+def submit_quiz(quiz_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. ดึงคำตอบที่ถูกต้องจากคอลัมน์ correct_answer
+    cursor.execute("SELECT question_id, correct_answer FROM questions WHERE quiz_id = %s", (quiz_id,))
+    correct_answers = {row['question_id']: row['correct_answer'] for row in cursor.fetchall()}
+    
+    # 2. ดึงคำตอบของผู้ใช้จากฟอร์ม
+    user_answers = {}
+    for key, value in request.form.items():
+        if key.startswith('question_'):
+            question_id = int(key.split('_')[1])
+            user_answers[question_id] = value
+
+    # 3. ตรวจคำตอบและคำนวณคะแนน
+    score = 0
+    total_questions = len(correct_answers)
+    for question_id, user_answer in user_answers.items():
+        if question_id in correct_answers and correct_answers[question_id] == user_answer:
+            score += 1
+    
+    # 4. คำนวณเปอร์เซ็นต์และตรวจสอบผล
+    percentage = (score / total_questions) * 100 if total_questions > 0 else 0
+    cursor.execute("SELECT passing_percentage FROM quiz WHERE quiz_id = %s", (quiz_id,))
+    quiz_info = cursor.fetchone()
+    passed = 1 if percentage >= quiz_info['passing_percentage'] else 0
+
+    # 5. บันทึกผลการสอบ
+    cursor.execute("""
+        INSERT INTO user_quiz_attempts (user_id, quiz_id, score, total_questions, percentage, passed, attempt_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (current_user.id, quiz_id, score, total_questions, percentage, passed, datetime.now()))
+    mysql.connection.commit()
+    
+    attempt_id = cursor.lastrowid
     cursor.close()
 
-    print(f"--- DEBUG: กำลังจะ Redirect ไปที่ course_id: {course_id} ---")
+    flash(f'คุณทำแบบทดสอบเสร็จแล้ว ได้คะแนน {score}/{total_questions}', 'info')
+    return redirect(url_for('quiz_result', attempt_id=attempt_id)) # สร้าง route หน้าผลลัพธ์ต่อไป
+
+@app.route('/quiz/result/<int:attempt_id>')
+@login_required
+def quiz_result(attempt_id):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ดึงข้อมูลผลการสอบจาก ID ที่ได้รับมา
+    # เพิ่มการ JOIN เพื่อดึงข้อมูล course_id และ lesson_id มาใช้กับปุ่ม "กลับ"
+    cursor.execute("""
+        SELECT 
+            uqa.*, 
+            q.quiz_name, 
+            q.quiz_type,
+            l.course_id
+        FROM user_quiz_attempts uqa
+        JOIN quiz q ON uqa.quiz_id = q.quiz_id
+        JOIN lesson l ON q.lesson_id = l.lesson_id
+        WHERE uqa.id = %s AND uqa.user_id = %s
+    """, (attempt_id, current_user.id))
     
-    if quiz.get('quiz_type') == 'Post_test':
-        print("--- DEBUG: เป็น Post_test, กำลัง Redirect ไปที่ user_learning_path ---")
-        return redirect(url_for('user_learning_path', course_id=course_id))
-    else:
-        print("--- DEBUG: ไม่ใช่ Post_test, กำลัง Redirect ไปที่ course_detail ---")
-        return redirect(url_for('course_detail', course_id=course_id))
+    attempt = cursor.fetchone()
+    cursor.close()
+
+    if not attempt:
+        flash('ไม่พบผลการสอบของคุณ', 'danger')
+        return redirect(url_for('home'))
+
+    return render_template('course/quiz_result.html', attempt=attempt)
     
 # ✅ Placeholder Route สำหรับสร้างใบประกาศ
 @app.route('/course/<int:course_id>/certificate')
@@ -1022,7 +1108,7 @@ def submit_quiz(quiz_id):
 def generate_certificate(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ตรวจสอบว่าผู้ใช้เรียนจบคอร์สนี้จริงหรือไม่ (เหมือนเดิม)
+    # 1. ดึงข้อมูล (เหมือนเดิม)
     cursor.execute("""
         SELECT c.title, comp.completion_date
         FROM course_completions comp
@@ -1030,53 +1116,57 @@ def generate_certificate(course_id):
         WHERE comp.user_id = %s AND comp.course_id = %s
     """, (current_user.id, course_id))
     completion_data = cursor.fetchone()
+    cursor.close()
 
     if not completion_data:
         flash('คุณยังไม่จบหลักสูตรนี้', 'danger')
         return redirect(url_for('user_learning_path', course_id=course_id))
 
-    # 2. เตรียมข้อมูล (เหมือนเดิม)
     user_name = f"{current_user.first_name} {current_user.last_name}"
-    course_name = completion_data['title']
-    completion_date_thai = completion_data['completion_date'].strftime('%d %B %Y')
-
-    # 3. สร้าง PDF ด้วย FPDF
-    pdf = FPDF(orientation='L', unit='mm', format='A4') # 'L' for Landscape (แนวนอน)
-    pdf.add_page()
+    completion_date_obj = completion_data['completion_date']
     
-    # VVVVVV ส่วนที่แก้ไข: เพิ่มรูปภาพพื้นหลัง VVVVVV
-    # ขนาด A4 แนวนอน คือ กว้าง 297mm x สูง 210mm
-    # อย่าลืมเปลี่ยนชื่อ 'my-certificate.jpg' ให้ตรงกับชื่อไฟล์ของคุณ
-    pdf.image('static/images/my-certificate.jpg', x=0, y=0, w=297, h=210)
+    # 2. เปิดไฟล์รูปภาพ Template (เหมือนเดิม)
+    template_path = 'static/images/my-certificate.jpg' # ตรวจสอบชื่อไฟล์
+    image = Image.open(template_path)
+    draw = ImageDraw.Draw(image)
 
-    # เพิ่ม Font ภาษาไทย (เหมือนเดิม)
-    pdf.add_font('THSarabun', '', 'THSarabunNew.ttf', uni=True)
+    # --- VVVVVV ส่วนที่แก้ไข: สร้างวันที่ภาษาไทยเอง VVVVVV ---
+    def format_thai_date(date_obj):
+        thai_months = [
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
+            "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
+            "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ]
+        day = date_obj.day
+        month = thai_months[date_obj.month - 1]
+        year = date_obj.year + 543 # แปลงเป็น พ.ศ.
+        return f"{day} {month} {year}"
 
-    # VVVVVV ส่วนที่แก้ไข: ปรับตำแหน่งข้อความ VVVVVV
-    # เราจะใช้ set_y() เพื่อกำหนดตำแหน่งในแนวตั้งให้แม่นยำ
-    
-    # พิมพ์ชื่อผู้เรียน (ปรับเลข 85 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
-    pdf.set_y(85) 
-    pdf.set_font('THSarabun', '', 32)
-    pdf.cell(0, 25, txt=user_name, align='C')
+    formatted_date = format_thai_date(completion_date_obj)
+    # --- ^^^^^^ สิ้นสุดส่วนที่แก้ไข ^^^^^^ ---
 
-    # พิมพ์ชื่อคอร์ส (ปรับเลข 115 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
-    pdf.set_y(115)
-    pdf.set_font('THSarabun', '', 28)
-    pdf.cell(0, 25, txt=course_name, align='C')
-    
-    # พิมพ์วันที่ (ปรับเลข 150 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
-    pdf.set_y(150)
-    pdf.set_font('THSarabun', '', 20)
-    pdf.cell(0, 20, txt=f"สำเร็จการศึกษาเมื่อวันที่ {completion_date_thai}", align='C')
+    # 3. เตรียมฟอนต์ (เหมือนเดิม)
+    font_path = 'Sarabun-Regular.ttf'
+    font_name = ImageFont.truetype(font_path, 120)
+    font_date = ImageFont.truetype(font_path, 60)
 
-    # 4. ส่งไฟล์ PDF กลับไปให้เบราว์เซอร์ (เหมือนเดิม)
-    response = make_response(pdf.output(dest='S').encode('latin-1'))
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=certificate_{course_id}.pdf'
-    
-    cursor.close()
-    return response
+    # 4. เขียน "ชื่อผู้เรียน" (เหมือนเดิม)
+    _, _, text_width_name, _ = draw.textbbox((0, 0), user_name, font=font_name)
+    x_position_name = (image.width - text_width_name) / 2
+    draw.text((x_position_name, 625), user_name, font=font_name, fill='rgb(0, 0, 0)')
+
+    # 5. เขียน "วันที่" (ใช้ตัวแปรใหม่)
+    date_text = formatted_date
+    _, _, text_width_date, _ = draw.textbbox((0, 0), date_text, font=font_date)
+    x_position_date = (image.width - text_width_date) / 2
+    draw.text((x_position_date, 1025), date_text, font=font_date, fill='rgb(0, 0, 0)')
+
+    # 6. บันทึกและส่งไฟล์ (เหมือนเดิม)
+    img_io = io.BytesIO()
+    image.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype='image/png', as_attachment=True, download_name=f'certificate_{course_id}.png')
 
 @app.route('/contact')
 def contact():
@@ -2649,39 +2739,60 @@ def add_question(quiz_id):
 
 
 @app.route('/admin/question/<int:question_id>/edit', methods=['GET', 'POST'])
+@admin_required # หรือ @instructor_required
 def edit_question(question_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # ดึงข้อมูลคำถามจากฐานข้อมูล (เปลี่ยน question -> questions)
-    cursor.execute("SELECT * FROM questions WHERE question_id = %s", (question_id,))
-    question = cursor.fetchone()
-
-    if not question:
-        flash('ไม่พบคำถามนี้', 'danger')
-        return redirect(url_for('quiz_list'))  # เปลี่ยนเป็นหน้า list quiz หรือหน้าอื่นตามต้องการ
-
     if request.method == 'POST':
+        # --- ส่วนของการรับข้อมูลและอัปเดต (POST) ---
         question_name = request.form['question_name']
         choice_a = request.form['choice_a']
         choice_b = request.form['choice_b']
         choice_c = request.form['choice_c']
         choice_d = request.form['choice_d']
         correct_answer = request.form['correct_answer']
-        score = request.form['score']
+        
+        # ดึงชื่อไฟล์รูปเดิมมาก่อน
+        cursor.execute("SELECT question_image FROM questions WHERE question_id = %s", (question_id,))
+        question_image_filename = cursor.fetchone()['question_image']
 
-        # อัปเดตข้อมูลในฐานข้อมูล (เปลี่ยน question -> questions)
+        # ตรวจสอบว่ามีการอัปโหลดไฟล์ใหม่หรือไม่
+        if 'question_image' in request.files:
+            file = request.files['question_image']
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                # (Optional) อาจจะต้องลบไฟล์รูปเก่าออกจาก server ที่นี่
+                file.save(os.path.join(app.config['UPLOAD_FOLDER_QUESTION_IMAGES'], filename))
+                question_image_filename = filename # อัปเดตเป็นชื่อไฟล์ใหม่
+
+        # อัปเดตข้อมูลลงฐานข้อมูล
         cursor.execute("""
-            UPDATE questions SET question_name=%s, choice_a=%s, choice_b=%s, choice_c=%s,
-            choice_d=%s, correct_answer=%s, score=%s WHERE question_id=%s
-        """, (question_name, choice_a, choice_b, choice_c, choice_d, correct_answer, score, question_id))
-
+            UPDATE questions SET 
+            question_name = %s, 
+            question_image = %s,
+            choice_a = %s,
+            choice_b = %s,
+            choice_c = %s,
+            choice_d = %s,
+            correct_answer = %s
+            WHERE question_id = %s
+        """, (question_name, question_image_filename, choice_a, choice_b, choice_c, choice_d, correct_answer, question_id))
+        
         mysql.connection.commit()
         cursor.close()
-
         flash('แก้ไขคำถามเรียบร้อยแล้ว', 'success')
-        return redirect(url_for('quiz_questions', quiz_id=question['quiz_id']))
-
+        # ตรงนี้ให้ redirect กลับไปหน้าจัดการเนื้อหาของบทเรียนนั้นๆ
+        return redirect(url_for('admin_dashboard')) # ควรแก้ให้ไปยังหน้าที่ถูกต้อง
+    
+    # --- ส่วนของการดึงข้อมูลมาแสดง (GET) ---
+    cursor.execute("SELECT * FROM questions WHERE question_id = %s", (question_id,))
+    question = cursor.fetchone()
     cursor.close()
+
+    if not question:
+        flash('ไม่พบคำถามที่ต้องการแก้ไข', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     return render_template('admin/edit_question.html', question=question)
 
 @app.route('/admin/question/<int:question_id>/delete', methods=['POST'])

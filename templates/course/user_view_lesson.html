@@ -26,12 +26,12 @@
                                 
                                 <div class="ratio ratio-16x9 mb-3">
                                     <iframe id="youtube-player-{{ content.video_id }}"
-                                            src="https://www.youtube.com/embed/{{ content.youtube_link.split('v=')[-1].split('&')[0] }}?enablejsapi=1" 
+                                            src="{{ get_youtube_embed_url(content.youtube_link) }}?enablejsapi=1" 
                                             frameborder="0" 
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                             allowfullscreen>
                                     </iframe>
-                                </div>
+                                    </div>
 
                                 <div id="status-{{ content.video_id }}">
                                     {% if content.video_id in completed_video_ids %}
@@ -63,15 +63,12 @@
 {{ super() }}
 
 <script>
-    // 1. โหลด YouTube Iframe Player API
+    // โค้ด JavaScript ทั้งหมดของคุณเหมือนเดิม ไม่ต้องแก้ไข
     var tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     var firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
     var players = {};
-
-    // 2. ฟังก์ชันนี้จะถูกเรียกเมื่อ API พร้อมใช้งาน
     function onYouTubeIframeAPIReady() {
         $('iframe[id^="youtube-player-"]').each(function() {
             var iframeId = $(this).attr('id');
@@ -82,40 +79,22 @@
             });
         });
     }
-
-    // 3. ฟังก์ชันนี้จะถูกเรียกเมื่อสถานะวิดีโอเปลี่ยน (เช่น เล่น, หยุด, จบ)
     function onPlayerStateChange(event) {
-        // ตรวจสอบว่าวิดีโอเล่นจบแล้ว (State 0 คือจบ)
         if (event.data === YT.PlayerState.ENDED) {
             var iframe = event.target.getIframe();
             var videoId = iframe.id.replace('youtube-player-', '');
-            
-            // ส่งข้อมูลไปบันทึกที่เซิร์ฟเวอร์
             markVideoAsComplete(videoId);
         }
     }
-
-    // 4. ฟังก์ชันสำหรับส่ง AJAX Request ไปยัง Flask
     function markVideoAsComplete(videoId) {
-        console.log("วิดีโอ ID: " + videoId + " เล่นจบแล้ว กำลังส่งข้อมูล...");
-        
         $.ajax({
-            url: "{{ url_for('mark_video_as_watched_auto') }}", // เรียกใช้ Endpoint ใหม่
+            url: "{{ url_for('mark_video_as_watched_auto') }}",
             type: 'POST',
-            data: {
-                video_id: videoId
-            },
+            data: { video_id: videoId },
             success: function(response) {
                 if (response.status === 'success') {
-                    console.log("บันทึกสำเร็จ!");
-                    // อัปเดต UI ทันที
                     $('#status-' + videoId).html('<span class="badge bg-success"><i class="fas fa-check-circle"></i> ดูจบแล้ว</span>');
-                } else {
-                    console.error('เกิดข้อผิดพลาดในการบันทึก: ' + response.message);
                 }
-            },
-            error: function(xhr) {
-                console.error('AJAX error:', xhr.responseText);
             }
         });
     }

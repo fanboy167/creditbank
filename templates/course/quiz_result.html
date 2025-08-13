@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}ผลการทดสอบ: {{ attempt.quiz_name }}{% endblock %}
+
+{% block content %}
+{% include "component/header.html" %}
+
+<div class="container-fluid bg-primary py-5 mb-5 page-header">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 text-center">
+                <h1 class="display-3 text-white animated slideInDown">ผลการทดสอบ</h1>
+                <h3 class="text-white">{{ attempt.quiz_name }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container-xxl py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-lg text-center wow fadeInUp" data-wow-delay="0.1s">
+                    <div class="card-body p-5">
+                        {% if attempt.passed %}
+                            <i class="fas fa-check-circle fa-5x text-success mb-4"></i>
+                            <h2 class="card-title">ยินดีด้วย! คุณสอบผ่าน</h2>
+                        {% else %}
+                            <i class="fas fa-times-circle fa-5x text-danger mb-4"></i>
+                            <h2 class="card-title">พยายามอีกครั้ง! คุณยังไม่ผ่านเกณฑ์</h2>
+                        {% endif %}
+                        
+                        <p class="lead mt-4">คะแนนที่คุณทำได้คือ</p>
+                        <h1 class="display-4 fw-bold">{{ attempt.score }} / {{ attempt.total_questions }}</h1>
+                        <p class="text-muted">คิดเป็น {{ "%.2f"|format(attempt.percentage) }}%</p>
+
+                        <div class="mt-5">
+                            <a href="{{ url_for('user_learning_path', course_id=attempt.course_id) }}" class="btn btn-secondary btn-lg px-4 mx-2">
+                                <i class="fas fa-arrow-left me-2"></i> กลับสู่เส้นทางการเรียนรู้
+                            </a>
+                            
+                            {# แสดงปุ่ม "ลองอีกครั้ง" ถ้ายังไม่ผ่าน #}
+                            {% if not attempt.passed %}
+                            <a href="{{ url_for('take_quiz', quiz_id=attempt.quiz_id) }}" class="btn btn-primary btn-lg px-4 mx-2">
+                                <i class="fas fa-redo-alt me-2"></i> ทำแบบทดสอบอีกครั้ง
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "component/footer.html" %}
+{% endblock %}
