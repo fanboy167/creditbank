@@ -1,9 +1,9 @@
-from flask import Flask, render_template, redirect, url_for, flash, session, request, current_app, jsonify 
+from flask import Flask, render_template, redirect, url_for, flash, session, request,  make_response, current_app, jsonify 
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_session import Session
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
-import re 
+import re  
 import os 
 from functools import wraps 
 from datetime import datetime
@@ -15,6 +15,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, DateField, SelectField, IntegerField
 from wtforms.validators import DataRequired, URL, Optional, Length, NumberRange
 import random
+from fpdf import FPDF
 
 UPLOAD_FOLDER_COURSE_IMAGES = 'static/course_images'
 UPLOAD_FOLDER_COURSE_VIDEOS = 'static/course_videos'
@@ -1016,13 +1017,66 @@ def submit_quiz(quiz_id):
         return redirect(url_for('course_detail', course_id=course_id))
     
 # ✅ Placeholder Route สำหรับสร้างใบประกาศ
-@app.route('/course/certificate/<int:course_id>', methods=['GET'])
+@app.route('/course/<int:course_id>/certificate')
 @login_required
 def generate_certificate(course_id):
-    # ในอนาคต Logic ตรงนี้จะตรวจสอบว่าผู้ใช้ผ่านหลักสูตรจริงไหม แล้วค่อยสร้าง PDF/Image certificate
-    flash(f"กำลังจะออกใบประกาศสำหรับหลักสูตร ID: {course_id} (ฟังก์ชันยังไม่สมบูรณ์)", "info")
-    # ✅ คุณจะต้องสร้าง logic การสร้างใบประกาศจริงในอนาคต
-    return redirect(url_for('user_dashboard'))
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. ตรวจสอบว่าผู้ใช้เรียนจบคอร์สนี้จริงหรือไม่ (เหมือนเดิม)
+    cursor.execute("""
+        SELECT c.title, comp.completion_date
+        FROM course_completions comp
+        JOIN courses c ON comp.course_id = c.id
+        WHERE comp.user_id = %s AND comp.course_id = %s
+    """, (current_user.id, course_id))
+    completion_data = cursor.fetchone()
+
+    if not completion_data:
+        flash('คุณยังไม่จบหลักสูตรนี้', 'danger')
+        return redirect(url_for('user_learning_path', course_id=course_id))
+
+    # 2. เตรียมข้อมูล (เหมือนเดิม)
+    user_name = f"{current_user.first_name} {current_user.last_name}"
+    course_name = completion_data['title']
+    completion_date_thai = completion_data['completion_date'].strftime('%d %B %Y')
+
+    # 3. สร้าง PDF ด้วย FPDF
+    pdf = FPDF(orientation='L', unit='mm', format='A4') # 'L' for Landscape (แนวนอน)
+    pdf.add_page()
+    
+    # VVVVVV ส่วนที่แก้ไข: เพิ่มรูปภาพพื้นหลัง VVVVVV
+    # ขนาด A4 แนวนอน คือ กว้าง 297mm x สูง 210mm
+    # อย่าลืมเปลี่ยนชื่อ 'my-certificate.jpg' ให้ตรงกับชื่อไฟล์ของคุณ
+    pdf.image('static/images/my-certificate.jpg', x=0, y=0, w=297, h=210)
+
+    # เพิ่ม Font ภาษาไทย (เหมือนเดิม)
+    pdf.add_font('THSarabun', '', 'THSarabunNew.ttf', uni=True)
+
+    # VVVVVV ส่วนที่แก้ไข: ปรับตำแหน่งข้อความ VVVVVV
+    # เราจะใช้ set_y() เพื่อกำหนดตำแหน่งในแนวตั้งให้แม่นยำ
+    
+    # พิมพ์ชื่อผู้เรียน (ปรับเลข 85 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
+    pdf.set_y(85) 
+    pdf.set_font('THSarabun', '', 32)
+    pdf.cell(0, 25, txt=user_name, align='C')
+
+    # พิมพ์ชื่อคอร์ส (ปรับเลข 115 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
+    pdf.set_y(115)
+    pdf.set_font('THSarabun', '', 28)
+    pdf.cell(0, 25, txt=course_name, align='C')
+    
+    # พิมพ์วันที่ (ปรับเลข 150 เพื่อเลื่อนขึ้น-ลงให้ตรงช่อง)
+    pdf.set_y(150)
+    pdf.set_font('THSarabun', '', 20)
+    pdf.cell(0, 20, txt=f"สำเร็จการศึกษาเมื่อวันที่ {completion_date_thai}", align='C')
+
+    # 4. ส่งไฟล์ PDF กลับไปให้เบราว์เซอร์ (เหมือนเดิม)
+    response = make_response(pdf.output(dest='S').encode('latin-1'))
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=certificate_{course_id}.pdf'
+    
+    cursor.close()
+    return response
 
 @app.route('/contact')
 def contact():
