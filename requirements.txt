@@ -3,6 +3,7 @@ blinker==1.9.0
 cachelib==0.13.0
 click==8.2.1
 colorama==0.4.6
+defusedxml==0.7.1
 Flask==3.1.1
 Flask-Bcrypt==1.0.1
 Flask-Login==0.6.3
@@ -10,6 +11,8 @@ Flask-MySQLdb==2.0.0
 Flask-Session==0.8.0
 Flask-SQLAlchemy==3.1.1
 Flask-WTF==1.2.2
+fonttools==4.59.0
+fpdf2==2.8.4
 greenlet==3.2.2
 itsdangerous==2.2.0
 Jinja2==3.1.6
@@ -17,6 +20,7 @@ MarkupSafe==3.0.2
 msgspec==0.19.0
 mysql-connector-python==9.3.0
 mysqlclient==2.2.7
+pillow==11.3.0
 PyMySQL==1.1.1
 SQLAlchemy==2.0.41
 typing_extensions==4.14.0
