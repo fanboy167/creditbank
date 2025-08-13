@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 13, 2025 at 02:35 PM
+-- Generation Time: Aug 13, 2025 at 09:19 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -91,6 +91,27 @@ CREATE TABLE `courses` (
 
 INSERT INTO `courses` (`id`, `featured_image`, `title`, `created_at`, `instructor_id`, `categories_id`, `description`, `status`, `featured_video`) VALUES
 (12, '12_20250804094252_course.jpg', 'Information Systems Security', '2025-06-16 19:00:01', 6, 1, 'รายวิชา Information Systems Security ศึกษาเกี่ยวกับหลักการ แนวคิด เทคนิค และเครื่องมือต่าง ๆ ที่ใช้ในการรักษาความมั่นคงปลอดภัยของระบบสารสนเทศ ครอบคลุมการป้องกันข้อมูล การจัดการความเสี่ยง การเข้ารหัส การพิสูจน์ตัวตน การควบคุมการเข้าถึง ตลอดจนการตรวจสอบและตอบสนองต่อเหตุการณ์ด้านความมั่นคง เพื่อให้ระบบสารสนเทศมีความปลอดภัยจากการโจมตี การบุกรุก หรือความเสียหายที่อาจเกิดขึ้น', 'publish', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `course_completions`
+--
+
+CREATE TABLE `course_completions` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `course_id` int(11) NOT NULL,
+  `completion_date` date NOT NULL,
+  `certificate_code` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `course_completions`
+--
+
+INSERT INTO `course_completions` (`id`, `user_id`, `course_id`, `completion_date`, `certificate_code`) VALUES
+(1, 34, 12, '2025-08-13', 'CERT-12-34-1755089115');
 
 -- --------------------------------------------------------
 
@@ -451,6 +472,13 @@ ALTER TABLE `courses`
   ADD KEY `categories_id` (`categories_id`);
 
 --
+-- Indexes for table `course_completions`
+--
+ALTER TABLE `course_completions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_course_unique` (`user_id`,`course_id`);
+
+--
 -- Indexes for table `instructor`
 --
 ALTER TABLE `instructor`
@@ -532,6 +560,12 @@ ALTER TABLE `admin`
 --
 ALTER TABLE `courses`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT for table `course_completions`
+--
+ALTER TABLE `course_completions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `instructor`
