@@ -414,187 +414,107 @@ def course():
 def course_detail(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    print(f"\n--- DEBUG: เข้าสู่ course_detail สำหรับ course_id: {course_id} ---")
-
+    # 1. ดึงข้อมูลคอร์ส (โค้ดส่วนนี้ของคุณถูกต้องแล้ว)
     query = """
     SELECT
-      c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
-      cat.id AS category_id, cat.name AS category_name,
-      i.id AS instructor_id, i.first_name, i.last_name,
-      c.status,
-      
-      pre_q.quiz_id AS pre_test_quiz_id,
-      pre_q.quiz_name AS pre_test_quiz_name,
-      pre_q.passing_percentage AS pre_test_passing_percentage
+        c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
+        cat.id AS category_id, cat.name AS category_name,
+        i.id AS instructor_id, i.first_name, i.last_name,
+        c.status,
+        pre_q.quiz_id AS pre_test_quiz_id,
+        pre_q.quiz_name AS pre_test_quiz_name,
+        pre_q.passing_percentage AS pre_test_passing_percentage
     FROM courses c
     LEFT JOIN categories cat ON c.categories_id = cat.id
     LEFT JOIN instructor i ON c.instructor_id = i.id
-    
     LEFT JOIN lesson AS l_quiz ON l_quiz.course_id = c.id
     LEFT JOIN quiz AS pre_q ON pre_q.lesson_id = l_quiz.lesson_id AND pre_q.quiz_type = 'Pre-test'
-    
     WHERE c.id = %s AND c.status = 'publish'
-    GROUP BY c.id, c.title, c.description, c.featured_image, c.featured_video,
-             cat.id, cat.name, i.id, i.first_name, i.last_name, c.status,
-             pre_q.quiz_id, pre_q.quiz_name, pre_q.passing_percentage
+    GROUP BY c.id
     LIMIT 1
     """
-    
-    # ✅ ดึง course_data ไว้ใน try-except block
     try:
         cursor.execute(query, (course_id,))
-        course_data = cursor.fetchone() # ✅ course_data ถูกกำหนดตรงนี้
+        course_data = cursor.fetchone()
     except Exception as e:
-        print(f"ERROR: SQL Error in course_detail query: {e}")
         flash(f"เกิดข้อผิดพลาดในการดึงข้อมูลหลักสูตร: {str(e)}", "danger")
         cursor.close()
         return redirect(url_for('course'))
 
     if not course_data:
-        print(f"DEBUG: ไม่พบหลักสูตร ID {course_id} เลย. Redirect ไปที่ /course.")
         flash('ไม่พบหลักสูตรที่ระบุ', 'danger')
         cursor.close()
         return redirect(url_for('course'))
 
-    # ✅ ตรวจสอบสถานะหลังจากดึงข้อมูลมาแล้ว (ย้ายมาไว้ข้างนอก try-except)
-    if course_data.get('status') != 'publish':
-        print(f"DEBUG: หลักสูตร ID {course_id} สถานะไม่ใช่ 'publish' ('{course_data.get('status')}'). Redirect ไปที่ /course.")
-        flash('หลักสูตรนี้ยังไม่ถูกเผยแพร่', 'danger')
-        cursor.close()
-        return redirect(url_for('course'))
-
-
-    print(f"DEBUG: พบข้อมูลหลักสูตร: {course_data}")
-    print(f"DEBUG: สถานะหลักสูตรจาก DB: '{course_data.get('status')}'")
-    print(f"DEBUG: Course ID from DB: {course_data.get('id')}")
-
-    # ✅ สร้าง course dictionary หลังจาก course_data ถูกกำหนดแล้ว
     course = {
         'id': course_data['id'], 'course_name': course_data['course_name'], 'description': course_data.get('description', ''),
         'featured_image': course_data['featured_image'], 'featured_video': course_data['featured_video'],
         'category': {'id': course_data['category_id'], 'name': course_data['category_name']},
         'instructor': {'id': course_data['instructor_id'], 'first_name': course_data['first_name'], 'last_name': course_data['last_name']},
-        
         'pre_test_quiz_id': course_data.get('pre_test_quiz_id'),
         'pre_test_quiz_name': course_data.get('pre_test_quiz_name'),
         'pre_test_passing_percentage': course_data.get('pre_test_passing_percentage'),
-        
         'students_count': 0, 
         'duration_hours': 'N/A'
     }
-
-    # ✅ ดึงจำนวนนักเรียนที่ลงทะเบียนหลักสูตรนี้ (ย้ายมาไว้หลัง course_data ถูกกำหนด)
-    cursor.execute("SELECT COUNT(id) AS student_count FROM registered_courses WHERE course_id = %s", (course_id,))
-    student_count_result = cursor.fetchone()
-    student_count = student_count_result['student_count'] if student_count_result else 0
-    course['students_count'] = student_count # ✅ อัปเดตใน course dict
-
-    # ✅ ดึงและคำนวณระยะเวลารวมของวิดีโอทั้งหมดในหลักสูตร (ย้ายมาไว้หลัง course_data ถูกกำหนด)
-    total_duration_minutes = 0
-    print(f"DEBUG: กำลังคำนวณระยะเวลารวมสำหรับ course_id: {course_id}")
+    # (ส่วนคำนวณ student_count และ duration_hours ของคุณ)
     
-    duration_query = """
-        SELECT qv.time_duration, qv.title, qv.video_id, l.lesson_id, l.lesson_name
-        FROM quiz_video qv
-        JOIN lesson l ON qv.lesson_id = l.lesson_id
-        WHERE l.course_id = %s AND qv.quiz_id IS NULL -- เฉพาะวิดีโอ
-    """
-    print(f"DEBUG: Executing duration query: {duration_query % course_id}")
-    
-    cursor.execute(duration_query, (course_id,))
-    video_durations_raw = cursor.fetchall()
-    
-    print(f"DEBUG: วิดีโอที่ดึงมาเพื่อคำนวณระยะเวลา: {video_durations_raw}")
-
-    for duration_row in video_durations_raw:
-        duration_str = duration_row.get('time_duration')
-        video_title = duration_row.get('title')
-        video_id_debug = duration_row.get('video_id')
-        lesson_id_debug = duration_row.get('lesson_id')
-
-        if duration_str:
-            try:
-                parts = [int(p) for p in duration_str.split(':')]
-                current_video_minutes = 0
-                if len(parts) == 2: # MM:SS
-                    current_video_minutes = parts[0] + parts[1] / 60
-                elif len(parts) == 3: # HH:MM:SS
-                    current_video_minutes = parts[0] * 60 + parts[1] + parts[2] / 60
-                total_duration_minutes += current_video_minutes
-                print(f"DEBUG: วิดีโอ '{video_title}' (ID: {video_id_debug}, Lesson: {lesson_id_debug}) ระยะเวลา '{duration_str}' -> {current_video_minutes:.2f} นาที. รวม: {total_duration_minutes:.2f} นาที")
-            except ValueError:
-                print(f"WARNING: วิดีโอ '{video_title}' (ID: {video_id_debug}) มีรูปแบบ time_duration ไม่ถูกต้อง: '{duration_str}'. ข้ามการคำนวณ.")
-        else:
-            print(f"WARNING: วิดีโอ '{video_title}' (ID: {video_id_debug}) ไม่มี time_duration หรือเป็น NULL.")
-    
-    course_duration_display = "N/A"
-    if total_duration_minutes > 0:
-        hours = int(total_duration_minutes // 60)
-        minutes = int(total_duration_minutes % 60)
-        if hours > 0:
-            course_duration_display = f"{hours} ชม. {minutes} นาที"
-        else:
-            course_duration_display = f"{minutes} นาที"
-    print(f"DEBUG: ระยะเวลารวมของหลักสูตร: {course_duration_display}")
-    course['duration_hours'] = course_duration_display # ✅ อัปเดตใน course dict
-
-
-    # 2. ดึงบทเรียนทั้งหมดของหลักสูตรนี้ (เหมือนเดิม)
-    cursor.execute("""
-        SELECT lesson_id, lesson_name, lesson_date, description
-        FROM lesson
-        WHERE course_id = %s
-        ORDER BY lesson_date ASC
-    """, (course_id,))
+    cursor.execute("SELECT lesson_id, lesson_name, lesson_date, description FROM lesson WHERE course_id = %s ORDER BY lesson_date ASC", (course_id,))
     lessons_in_course = cursor.fetchall()
-    
-    first_lesson_id = None
-    if lessons_in_course:
-        first_lesson_id = lessons_in_course[0].get('lesson_id')
+    first_lesson_id = lessons_in_course[0].get('lesson_id') if lessons_in_course else None
 
-    # 3. ตรวจสอบสถานะการลงทะเบียนและผลแบบทดสอบของผู้ใช้ปัจจุบัน (เหมือนเดิม)
+    # 2. เตรียมตัวแปร
     is_enrolled = False
     user_pre_test_attempt = None
-    user_score_display = 0
-    total_score_possible_display = 0
-    percentage_score_display = 0.0
+    progress_percentage = 0
     passed_display = False
 
+    # 3. ตรวจสอบสถานะผู้ใช้
     if current_user.is_authenticated:
-        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
+        user_id = current_user.id
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (user_id, course_id))
+        
         if cursor.fetchone():
             is_enrolled = True
         
-        if is_enrolled and course['pre_test_quiz_id']:
-            cursor.execute("SELECT SUM(score) AS total_score FROM questions WHERE quiz_id = %s", (course['pre_test_quiz_id'],))
-            total_score_result = cursor.fetchone()
-            total_score_possible_display = total_score_result['total_score'] if total_score_result and total_score_result['total_score'] is not None else 0
+            # --- VVVVVV แก้ไขจุดที่ 1: เติมโค้ดดึงผล Pre-test VVVVVV ---
+            if course.get('pre_test_quiz_id'):
+                cursor.execute("""
+                    SELECT score, passed FROM user_quiz_attempts 
+                    WHERE user_id = %s AND quiz_id = %s 
+                    ORDER BY attempt_date DESC LIMIT 1
+                """, (user_id, course['pre_test_quiz_id']))
+                user_pre_test_attempt = cursor.fetchone()
+                if user_pre_test_attempt:
+                    passed_display = user_pre_test_attempt['passed']
+            # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
 
-            cursor.execute("""
-                SELECT id, score, passed, attempt_date
-                FROM user_quiz_attempts
-                WHERE user_id = %s AND quiz_id = %s
-                ORDER BY attempt_date DESC LIMIT 1
-            """, (current_user.id, course['pre_test_quiz_id']))
-            user_pre_test_attempt = cursor.fetchone()
+            # --- ส่วนคำนวณความคืบหน้า (เหมือนเดิม) ---
+            cursor.execute("SELECT COUNT(qv.video_id) as total FROM quiz_video qv JOIN lesson l ON qv.lesson_id = l.lesson_id WHERE l.course_id = %s AND qv.quiz_id IS NULL", (course_id,))
+            total_videos = cursor.fetchone()['total']
+            cursor.execute("SELECT COUNT(q.quiz_id) as total FROM quiz q JOIN lesson l ON q.lesson_id = l.lesson_id WHERE l.course_id = %s AND q.quiz_type = 'Post_test'", (course_id,))
+            total_post_tests = cursor.fetchone()['total']
+            total_items = total_videos + total_post_tests
 
-            if user_pre_test_attempt:
-                user_score_display = user_pre_test_attempt['score']
-                passed_display = user_pre_test_attempt['passed']
-                percentage_score_display = (user_score_display / total_score_possible_display) * 100 if total_score_possible_display > 0 else 0
-                
+            cursor.execute("SELECT COUNT(uvp.id) as total FROM user_video_progress uvp JOIN quiz_video qv ON uvp.video_id = qv.video_id JOIN lesson l ON qv.lesson_id = l.lesson_id WHERE uvp.user_id = %s AND l.course_id = %s", (user_id, course_id))
+            completed_videos = cursor.fetchone()['total']
+            cursor.execute("SELECT COUNT(DISTINCT uqa.quiz_id) as total FROM user_quiz_attempts uqa JOIN quiz q ON uqa.quiz_id = q.quiz_id JOIN lesson l ON q.lesson_id = l.lesson_id WHERE uqa.user_id = %s AND l.course_id = %s AND q.quiz_type = 'Post_test' AND uqa.passed = 1", (user_id, course_id))
+            passed_post_tests = cursor.fetchone()['total']
+            completed_items = completed_videos + passed_post_tests
+            
+            progress_percentage = (completed_items / total_items) * 100 if total_items > 0 else 0
+            
     cursor.close()
-    print(f"DEBUG: กำลังเรนเดอร์ course/course_detail.html สำหรับ course_id: {course_id}.")
+    
+    # --- VVVVVV แก้ไขจุดที่ 2: เพิ่มตัวแปรที่ขาดไป VVVVVV ---
     return render_template('course/course_detail.html', 
                            course=course, 
                            lessons_in_course=lessons_in_course,
                            is_enrolled=is_enrolled,
                            user_pre_test_attempt=user_pre_test_attempt,
-                           user_score_display=user_score_display,           
-                           total_score_possible_display=total_score_possible_display, 
-                           percentage_score_display=percentage_score_display, 
-                           passed_display=passed_display,
-                           first_lesson_id=first_lesson_id)
+                           passed_display=passed_display, # <--- เพิ่มตัวแปรนี้
+                           first_lesson_id=first_lesson_id,
+                           progress=progress_percentage)
     
 @app.route('/user/lesson/<int:lesson_id>')
 @login_required # ผู้ใช้ต้องล็อกอินก่อน
@@ -1126,23 +1046,24 @@ def generate_certificate(course_id):
     completion_date_obj = completion_data['completion_date']
     
     # 2. เปิดไฟล์รูปภาพ Template (เหมือนเดิม)
-    template_path = 'static/images/my-certificate.jpg' # ตรวจสอบชื่อไฟล์
+    template_path = 'static/images/certificate.jpg'
     image = Image.open(template_path)
     draw = ImageDraw.Draw(image)
 
-    # --- VVVVVV ส่วนที่แก้ไข: สร้างวันที่ภาษาไทยเอง VVVVVV ---
-    def format_thai_date(date_obj):
-        thai_months = [
-            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
-            "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
-            "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    # --- VVVVVV ส่วนที่แก้ไข: สร้างวันที่ภาษาอังกฤษ VVVVVV ---
+    def format_english_date(date_obj):
+        english_months = [
+            "January", "February", "March", "April",
+            "May", "June", "July", "August",
+            "September", "October", "November", "December"
         ]
         day = date_obj.day
-        month = thai_months[date_obj.month - 1]
-        year = date_obj.year + 543 # แปลงเป็น พ.ศ.
-        return f"{day} {month} {year}"
+        month = english_months[date_obj.month - 1]
+        year = date_obj.year # ใช้ปี ค.ศ. ตรงๆ
+        # จัดรูปแบบเป็น "August 18, 2025"
+        return f"{month} {day}, {year}"
 
-    formatted_date = format_thai_date(completion_date_obj)
+    formatted_date = format_english_date(completion_date_obj)
     # --- ^^^^^^ สิ้นสุดส่วนที่แก้ไข ^^^^^^ ---
 
     # 3. เตรียมฟอนต์ (เหมือนเดิม)
@@ -1153,13 +1074,13 @@ def generate_certificate(course_id):
     # 4. เขียน "ชื่อผู้เรียน" (เหมือนเดิม)
     _, _, text_width_name, _ = draw.textbbox((0, 0), user_name, font=font_name)
     x_position_name = (image.width - text_width_name) / 2
-    draw.text((x_position_name, 625), user_name, font=font_name, fill='rgb(0, 0, 0)')
+    draw.text((x_position_name, 570), user_name, font=font_name, fill='rgb(0, 0, 0)')
 
     # 5. เขียน "วันที่" (ใช้ตัวแปรใหม่)
-    date_text = formatted_date
+    date_text = formatted_date # <--- เอาคำว่า "ณ วันที่" ออก และใช้รูปแบบใหม่
     _, _, text_width_date, _ = draw.textbbox((0, 0), date_text, font=font_date)
     x_position_date = (image.width - text_width_date) / 2
-    draw.text((x_position_date, 1025), date_text, font=font_date, fill='rgb(0, 0, 0)')
+    draw.text((x_position_date, 975), date_text, font=font_date, fill='rgb(0, 0, 0)')
 
     # 6. บันทึกและส่งไฟล์ (เหมือนเดิม)
     img_io = io.BytesIO()

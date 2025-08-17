@@ -38,6 +38,14 @@
                     </div>
                 </div>
 
+                {% if is_course_completed %}
+                    <div class="text-center my-4 wow fadeInUp" data-wow-delay="0.1s">
+                        <h4 class="text-success"><i class="fas fa-check-circle"></i> ยินดีด้วย! คุณเรียนจบหลักสูตรนี้แล้ว</h4>
+                        <a href="{{ url_for('generate_certificate', course_id=course.id) }}" class="btn btn-success btn-lg mt-3">
+                            <i class="fas fa-award me-2"></i> ดาวน์โหลดใบประกาศนียบัตร
+                        </a>
+                    </div>
+                {% endif %}
                 <div class="list-group">
                     {% for item in learning_path_data %}
                         
@@ -65,7 +73,6 @@
                                     <h5 class="mb-1 text-success"><i class="fas fa-book-open me-2"></i>บทเรียน: {{ item.title }}</h5>
                                 </div>
                             
-                            {# VVVVVV แก้ไขจุดนี้: เปลี่ยน pre_test_course เป็น pre_test_lesson VVVVVV #}
                             {% elif item.type == 'pre_test_lesson' %}
                                 <a href="{{ url_for('start_quiz', quiz_id=item.quiz_id) }}" class="list-group-item list-group-item-action ps-5 py-3 mb-1 rounded-sm border-0 border-start border-primary border-3">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
