@@ -1,0 +1,32 @@
+{# templates/component/flash_messages.html #}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {# สคริปต์นี้จะทำงานเมื่อมีข้อความ flash เท่านั้น #}
+    <script>
+      // รอให้หน้าเว็บโหลดเสร็จก่อน
+      document.addEventListener('DOMContentLoaded', function() {
+        // สร้าง Toast object ด้วยการตั้งค่าเริ่มต้น
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end', // <--- ตำแหน่งมุมขวาบน
+          showConfirmButton: false,
+          timer: 3000, // <--- แสดงผล 3 วินาที
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+          }
+        });
+
+        // วนลูปแสดงข้อความทั้งหมดที่มี
+        {% for category, message in messages %}
+          Toast.fire({
+            icon: '{{ category or "info" }}', // 'success', 'error', 'warning'
+            title: '{{ message }}'
+          });
+        {% endfor %}
+      });
+    </script>
+  {% endif %}
+{% endwith %}

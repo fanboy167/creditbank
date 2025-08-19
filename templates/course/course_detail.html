@@ -31,7 +31,7 @@
                 <div class="card shadow-sm mb-4">
                     <div class="card-body p-4">
                         <div class="row g-4">
-                            <!-- คอลัมน์ซ้าย: รายละเอียดคอร์ส (เหมือนเดิม) -->
+                            <!-- คอลัมน์ซ้าย: รายละเอียดคอร์ส -->
                             <div class="col-lg-7">
                                 {% if course.featured_video %}
                                     <div class="mb-4 ratio ratio-16x9">
@@ -50,21 +50,25 @@
                                 </div>
                             </div>
 
-                            <!-- คอลัมน์ขวา: Sidebar ที่แก้ไขแล้ว -->
+                            <!-- คอลัมน์ขวา: Sidebar -->
                             <div class="col-lg-5">
                                 <div class="card bg-light shadow-sm mb-3">
                                     <div class="card-header bg-primary text-white">
                                         <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>สถานะหลักสูตร</h5>
                                     </div>
                                     <div class="card-body">
-
+                                        {# --- VVVVVV โค้ดส่วนที่แก้ไข VVVVVV --- #}
                                         {% if not current_user.is_authenticated %}
-                                            <div class="alert alert-warning">กรุณา <a href="{{ url_for('login') }}" class="alert-link">เข้าสู่ระบบ</a></div>
-                                        
+                                            <div class="alert alert-warning">กรุณา <a href="{{ url_for('login') }}" class="alert-link">เข้าสู่ระบบ</a> เพื่อดำเนินการต่อ</div>
+                                        {% elif current_user.role in ['admin', 'instructor'] %}
+                                            <div class="alert alert-info small">คุณกำลังเข้าดูในฐานะ <strong>{{ current_user.role }}</strong></div>
+                                            <div class="d-grid gap-2 my-3">
+                                                <a href="{{ url_for('user_learning_path', course_id=course.id) }}" class="btn btn-primary btn-lg">
+                                                    <i class="fas fa-chalkboard-teacher me-2"></i>เข้าดูเส้นทางการเรียนรู้
+                                                </a>
+                                            </div>
                                         {% elif is_enrolled %}
                                             <button type="button" class="btn btn-success w-100 mb-2" disabled><i class="fas fa-check-circle me-2"></i>ลงทะเบียนแล้ว</button>
-                                            <div class="alert alert-info small">คุณได้ลงทะเบียนหลักสูตรนี้เรียบร้อยแล้ว</div>
-
                                             {% if progress >= 100 %}
                                                 <div class="alert alert-success text-center mt-3">
                                                     <i class="fas fa-check-circle fa-2x mb-2"></i><h5>สำเร็จแล้ว</h5>
@@ -75,16 +79,12 @@
                                                     <div class="progress-bar" role="progressbar" style="width: {{ progress }}%;">{{ "%.0f"|format(progress) }}%</div>
                                                 </div>
                                             {% endif %}
-                                            
                                             <div class="d-grid gap-2 my-3">
                                                 <a href="{{ url_for('user_learning_path', course_id=course.id) }}" class="btn btn-primary btn-lg">
                                                     {% if progress >= 100 %} ดูเส้นทางการเรียนรู้อีกครั้ง {% else %} เรียนต่อ {% endif %}
                                                 </a>
                                             </div>
-
-                                            <!-- VVVVVV ส่วนของ Pre-test ถูกลบออกไปแล้ว VVVVVV -->
-
-                                        {% else %} 
+                                        {% else %}
                                             <p>เริ่มต้นเส้นทางการเรียนรู้ของคุณได้เลย!</p>
                                             <div class="d-grid gap-2">
                                                 <form action="{{ url_for('join_course', course_id=course.id) }}" method="POST">
@@ -92,7 +92,7 @@
                                                 </form>
                                             </div>
                                         {% endif %}
-
+                                        {# --- ^^^^^^ สิ้นสุดส่วนที่แก้ไข ^^^^^^ --- #}
                                     </div>
                                 </div>
                             </div>
@@ -100,7 +100,7 @@
                     </div>
                 </div>
 
-                <!-- ส่วนรายการบทเรียน (เหมือนเดิม) -->
+                <!-- รายการบทเรียน -->
                 <div class="card shadow-sm mt-4">
                     <div class="card-header bg-primary text-white"><h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>รายการบทเรียน</h5></div>
                     <div class="card-body p-0">

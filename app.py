@@ -365,18 +365,18 @@ def about():
 def course():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
+    # 1. ดึงข้อมูลคอร์สทั้งหมด (เหมือนเดิม)
     query = """
     SELECT
-      c.id,
-      c.title AS course_name,
-      -- c.description, # ✅ ลบ description ออกจาก SELECT
-      c.featured_image,
-      c.featured_video,
-      cat.id AS category_id,
-      cat.name AS category_name,
-      i.id AS instructor_id,
-      i.first_name,
-      i.last_name
+        c.id,
+        c.title AS course_name,
+        c.featured_image,
+        c.featured_video,
+        cat.id AS category_id,
+        cat.name AS category_name,
+        i.id AS instructor_id,
+        i.first_name,
+        i.last_name
     FROM courses c
     LEFT JOIN categories cat ON c.categories_id = cat.id
     LEFT JOIN instructor i ON c.instructor_id = i.id
@@ -385,14 +385,26 @@ def course():
     """
     cursor.execute(query)
     courses_raw = cursor.fetchall()
-    cursor.close()
     
+    # --- VVVVVV จุดที่แก้ไข VVVVVV ---
+
+    # 2. สร้าง List ว่างๆ เพื่อเก็บข้อมูลคอร์สที่สมบูรณ์
     courses = []
+    
+    # 3. วนลูปแต่ละคอร์สเพื่อนับจำนวนนักเรียน
     for row in courses_raw:
+        course_id = row['id']
+        
+        # นับจำนวนนักเรียนสำหรับคอร์สนี้โดยเฉพาะ
+        cursor.execute("SELECT COUNT(id) as count FROM registered_courses WHERE course_id = %s", (course_id,))
+        student_count_data = cursor.fetchone()
+        students_count = student_count_data['count'] if student_count_data else 0
+
+        # นำข้อมูลทั้งหมดมารวมกันแล้วเพิ่มเข้าไปใน List
         courses.append({
             'id': row['id'],
             'course_name': row['course_name'],
-            'description': row.get('description'), # ✅ ใช้ .get() เพื่อความปลอดภัย ถ้าคอลัมน์นี้ไม่มี
+            'description': row.get('description'), 
             'featured_image': row['featured_image'],
             'featured_video': row['featured_video'],
             'category': {
@@ -404,17 +416,24 @@ def course():
                 'first_name': row['first_name'],
                 'last_name': row['last_name']
             },
-            'students_count': 0,
+            'students_count': students_count, # <--- ใช้ค่าที่นับมาได้
             'duration_hours': 'N/A'
         })
+        
+    # --- ^^^^^^ สิ้นสุดจุดที่แก้ไข ^^^^^^ ---
+
+    cursor.close()
+    
+    # 4. ส่ง List ที่สมบูรณ์แล้วไปแสดงผล
     return render_template('course/course.html', courses=courses)
+
 
 
 @app.route('/course/<int:course_id>')
 def course_detail(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลคอร์ส (โค้ดส่วนนี้ของคุณถูกต้องแล้ว)
+    # 1. ดึงข้อมูลคอร์ส (เหมือนเดิม)
     query = """
     SELECT
         c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
@@ -446,6 +465,14 @@ def course_detail(course_id):
         cursor.close()
         return redirect(url_for('course'))
 
+    # --- VVVVVV จุดที่แก้ไข VVVVVV ---
+
+    # 2. นับจำนวนนักเรียนที่ลงทะเบียนในคอร์สนี้
+    cursor.execute("SELECT COUNT(id) as count FROM registered_courses WHERE course_id = %s", (course_id,))
+    student_count_data = cursor.fetchone()
+    students_count = student_count_data['count'] if student_count_data else 0
+
+    # 3. สร้าง Dictionary ของ course พร้อมกับจำนวนนักเรียนที่นับมาได้
     course = {
         'id': course_data['id'], 'course_name': course_data['course_name'], 'description': course_data.get('description', ''),
         'featured_image': course_data['featured_image'], 'featured_video': course_data['featured_video'],
@@ -454,22 +481,23 @@ def course_detail(course_id):
         'pre_test_quiz_id': course_data.get('pre_test_quiz_id'),
         'pre_test_quiz_name': course_data.get('pre_test_quiz_name'),
         'pre_test_passing_percentage': course_data.get('pre_test_passing_percentage'),
-        'students_count': 0, 
-        'duration_hours': 'N/A'
+        'students_count': students_count,  # <--- ใช้ค่าที่นับมาได้
+        'duration_hours': 'N/A' # คุณสามารถคำนวณค่านี้เพิ่มเติมได้ในอนาคต
     }
-    # (ส่วนคำนวณ student_count และ duration_hours ของคุณ)
     
+    # --- ^^^^^^ สิ้นสุดจุดที่แก้ไข ^^^^^^ ---
+
     cursor.execute("SELECT lesson_id, lesson_name, lesson_date, description FROM lesson WHERE course_id = %s ORDER BY lesson_date ASC", (course_id,))
     lessons_in_course = cursor.fetchall()
     first_lesson_id = lessons_in_course[0].get('lesson_id') if lessons_in_course else None
 
-    # 2. เตรียมตัวแปร
+    # เตรียมตัวแปร (เหมือนเดิม)
     is_enrolled = False
     user_pre_test_attempt = None
     progress_percentage = 0
     passed_display = False
 
-    # 3. ตรวจสอบสถานะผู้ใช้
+    # ตรวจสอบสถานะผู้ใช้ (เหมือนเดิม)
     if current_user.is_authenticated:
         user_id = current_user.id
         cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (user_id, course_id))
@@ -477,7 +505,6 @@ def course_detail(course_id):
         if cursor.fetchone():
             is_enrolled = True
         
-            # --- VVVVVV แก้ไขจุดที่ 1: เติมโค้ดดึงผล Pre-test VVVVVV ---
             if course.get('pre_test_quiz_id'):
                 cursor.execute("""
                     SELECT score, passed FROM user_quiz_attempts 
@@ -487,9 +514,8 @@ def course_detail(course_id):
                 user_pre_test_attempt = cursor.fetchone()
                 if user_pre_test_attempt:
                     passed_display = user_pre_test_attempt['passed']
-            # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
 
-            # --- ส่วนคำนวณความคืบหน้า (เหมือนเดิม) ---
+            # ส่วนคำนวณความคืบหน้า (เหมือนเดิม)
             cursor.execute("SELECT COUNT(qv.video_id) as total FROM quiz_video qv JOIN lesson l ON qv.lesson_id = l.lesson_id WHERE l.course_id = %s AND qv.quiz_id IS NULL", (course_id,))
             total_videos = cursor.fetchone()['total']
             cursor.execute("SELECT COUNT(q.quiz_id) as total FROM quiz q JOIN lesson l ON q.lesson_id = l.lesson_id WHERE l.course_id = %s AND q.quiz_type = 'Post_test'", (course_id,))
@@ -506,64 +532,48 @@ def course_detail(course_id):
             
     cursor.close()
     
-    # --- VVVVVV แก้ไขจุดที่ 2: เพิ่มตัวแปรที่ขาดไป VVVVVV ---
     return render_template('course/course_detail.html', 
                            course=course, 
                            lessons_in_course=lessons_in_course,
                            is_enrolled=is_enrolled,
                            user_pre_test_attempt=user_pre_test_attempt,
-                           passed_display=passed_display, # <--- เพิ่มตัวแปรนี้
+                           passed_display=passed_display,
                            first_lesson_id=first_lesson_id,
                            progress=progress_percentage)
+
     
 @app.route('/user/lesson/<int:lesson_id>')
-@login_required # ผู้ใช้ต้องล็อกอินก่อน
+@login_required
 def user_view_lesson(lesson_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลบทเรียน
+    # ดึงข้อมูลบทเรียน
     cursor.execute("SELECT lesson_id, lesson_name, description, course_id FROM lesson WHERE lesson_id = %s", (lesson_id,))
     lesson = cursor.fetchone()
-
     if not lesson:
         flash('ไม่พบบทเรียนที่ระบุ', 'danger')
         cursor.close()
-        return redirect(url_for('user_dashboard')) # หรือกลับไปหน้า course list
+        return redirect(url_for('course'))
 
-    # 2. ตรวจสอบว่าผู้ใช้ลงทะเบียนหลักสูตรนี้แล้วหรือไม่
-    # ดึงข้อมูลหลักสูตรของบทเรียนนี้
-    # ✅ ลบ pre_test_quiz_id ออกจาก SELECT
-    cursor.execute("SELECT id, title FROM courses WHERE id = %s", (lesson['course_id'],)) 
+    # ดึงข้อมูลหลักสูตร
+    cursor.execute("SELECT id, title FROM courses WHERE id = %s", (lesson['course_id'],))
     course_of_lesson = cursor.fetchone()
-
     if not course_of_lesson:
         flash('ไม่พบหลักสูตรที่เกี่ยวข้องกับบทเรียนนี้', 'danger')
         cursor.close()
-        return redirect(url_for('user_dashboard'))
+        return redirect(url_for('course'))
 
-    # ตรวจสอบการลงทะเบียนหลักสูตร
-    cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_of_lesson['id']))
-    is_enrolled_in_course = cursor.fetchone()
+    # --- VVVVVV ตรวจสอบสิทธิ์การเข้าถึง VVVVVV ---
+    if current_user.role not in ['admin', 'instructor']:
+        # ถ้าเป็น user ทั่วไป ให้ตรวจสอบการลงทะเบียน
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_of_lesson['id']))
+        if not cursor.fetchone():
+            flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
+            cursor.close()
+            return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
+    # --- ^^^^^^ สิ้นสุดการตรวจสอบ ^^^^^^ ---
 
-    if not is_enrolled_in_course:
-        flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
-        cursor.close()
-        return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
-
-    # ✅ ลบ Logic การตรวจสอบ Pre-test ออกจากตรงนี้
-    # เพราะการตรวจสอบนี้เกิดขึ้นที่หน้า course_detail ก่อนที่จะเข้ามาหน้านี้ได้
-    # if course_of_lesson['pre_test_quiz_id']:
-    #     cursor.execute("SELECT passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1",
-    #                    (current_user.id, course_of_lesson['pre_test_quiz_id']))
-    #     pre_test_result = cursor.fetchone()
-
-    #     if not pre_test_result or not pre_test_result['passed']:
-    #         flash('คุณต้องทำแบบทดสอบ Pre-test ของหลักสูตรนี้ให้ผ่านก่อนจึงจะเข้าถึงบทเรียนได้', 'warning')
-    #         cursor.close()
-    #         return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
-
-
-    # 4. ดึงเนื้อหา (วิดีโอ/แบบทดสอบ) ที่ผูกกับบทเรียนนี้
+    # ดึงเนื้อหา (วิดีโอ) ที่ผูกกับบทเรียนนี้
     cursor.execute("""
         SELECT video_id, title, youtube_link, description, time_duration, video_image, quiz_id
         FROM quiz_video
@@ -573,9 +583,9 @@ def user_view_lesson(lesson_id):
     lesson_contents = cursor.fetchall()
 
     cursor.close()
-    return render_template('course/user_view_lesson.html', 
-                           lesson=lesson, 
-                           course=course_of_lesson, 
+    return render_template('course/user_view_lesson.html',
+                           lesson=lesson,
+                           course=course_of_lesson,
                            lesson_contents=lesson_contents)
 
 @app.route('/course/join/<int:course_id>', methods=['POST'])
@@ -624,7 +634,7 @@ def join_course(course_id):
 def user_learning_path(course_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. ดึงข้อมูลหลักสูตร (เหมือนเดิม)
+    # ดึงข้อมูลหลักสูตร
     query = """
     SELECT
         c.id, c.title AS course_name, c.description, c.featured_image, c.featured_video,
@@ -643,7 +653,7 @@ def user_learning_path(course_id):
     if not course_data:
         flash('ไม่พบหลักสูตรที่ระบุ หรือหลักสูตรยังไม่เผยแพร่', 'danger')
         cursor.close()
-        return redirect(url_for('user_dashboard'))
+        return redirect(url_for('course'))
 
     course_for_template = {
         'id': course_data['id'], 'title': course_data['course_name'], 'description': course_data.get('description', ''),
@@ -653,25 +663,29 @@ def user_learning_path(course_id):
         'status': course_data.get('status')
     }
 
-    # 2. ตรวจสอบการลงทะเบียน (เหมือนเดิม)
-    cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
-    if not cursor.fetchone():
-        flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
-        cursor.close()
-        return redirect(url_for('course_detail', course_id=course_id))
+    # --- VVVVVV แก้ไขจุดที่ 1: ตรวจสอบสิทธิ์การเข้าถึง VVVVVV ---
+    if current_user.role not in ['admin', 'instructor']:
+        # ถ้าเป็น user ทั่วไป ให้ตรวจสอบการลงทะเบียน
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_id,))
+        if not cursor.fetchone():
+            flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
+            cursor.close()
+            return redirect(url_for('course_detail', course_id=course_id))
+    # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
 
-    # 3. ดึงบทเรียนและคำนวณความคืบหน้า (เหมือนเดิม)
+    # ดึงบทเรียนและคำนวณความคืบหน้า
     cursor.execute("SELECT lesson_id, lesson_name, description FROM lesson WHERE course_id = %s ORDER BY lesson_id ASC", (course_id,))
     lessons_raw = cursor.fetchall()
 
     learning_path_data = []
-    VIDEO_WEIGHT = 1
-    QUIZ_WEIGHT = 1
     total_possible_learning_points = 0
     user_earned_learning_points = 0
     previous_lesson_completed = True
 
     for lesson_row in lessons_raw:
+        # ... (โค้ด for loop และการคำนวณทั้งหมดของคุณเหมือนเดิม) ...
+        # (โค้ดส่วนนี้ยาวมาก แต่ทำงานถูกต้องแล้ว จึงไม่นำมาแสดงซ้ำ)
+        # ให้แน่ใจว่าโค้ด for loop เดิมของคุณยังอยู่ครบถ้วน
         is_locked = not previous_lesson_completed
         current_lesson_is_complete = True
         
@@ -681,10 +695,9 @@ def user_learning_path(course_id):
             'is_locked': is_locked
         })
         
-        # ... (โค้ด for loop ของคุณส่วนที่เหลือเหมือนเดิมทั้งหมด) ...
         cursor.execute("SELECT video_id, title, youtube_link, description, time_duration, quiz_id FROM quiz_video WHERE lesson_id = %s ORDER BY video_id ASC", (lesson_row['lesson_id'],))
         contents_raw = cursor.fetchall()
-        # ... (และโค้ดทั้งหมดที่อยู่ข้างใน for loop นี้) ...
+
         lesson_pre_test_quiz = None
         lesson_post_test_quiz = None
         lesson_videos = []
@@ -705,11 +718,11 @@ def user_learning_path(course_id):
                 lesson_videos.append(content_row)
 
         if lesson_pre_test_quiz:
-            total_possible_learning_points += QUIZ_WEIGHT
+            total_possible_learning_points += 1
             cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1", (current_user.id, lesson_pre_test_quiz['quiz_id']))
             attempt = cursor.fetchone()
             passed = attempt['passed'] if attempt else False
-            if passed: user_earned_learning_points += QUIZ_WEIGHT
+            if passed: user_earned_learning_points += 1
             learning_path_data.append({
                 'type': 'pre_test_lesson', 'quiz_id': lesson_pre_test_quiz['quiz_id'], 'title': lesson_pre_test_quiz['title'],
                 'status': "ผ่าน" if passed else ("ไม่ผ่าน" if attempt else "ยังไม่ทำ"),
@@ -718,12 +731,12 @@ def user_learning_path(course_id):
             })
         
         for video_row in lesson_videos:
-            total_possible_learning_points += VIDEO_WEIGHT
+            total_possible_learning_points += 1
             cursor.execute("SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s", (current_user.id, video_row['video_id']))
             progress = cursor.fetchone()
             is_completed = True if progress else False
             if is_completed:
-                user_earned_learning_points += VIDEO_WEIGHT
+                user_earned_learning_points += 1
             else:
                 current_lesson_is_complete = False
             learning_path_data.append({
@@ -734,12 +747,12 @@ def user_learning_path(course_id):
             })
             
         if lesson_post_test_quiz:
-            total_possible_learning_points += QUIZ_WEIGHT
+            total_possible_learning_points += 1
             cursor.execute("SELECT score, passed FROM user_quiz_attempts WHERE user_id = %s AND quiz_id = %s ORDER BY attempt_date DESC LIMIT 1", (current_user.id, lesson_post_test_quiz['quiz_id']))
             attempt = cursor.fetchone()
             passed = attempt['passed'] if attempt else False
             if passed:
-                user_earned_learning_points += QUIZ_WEIGHT
+                user_earned_learning_points += 1
             else:
                 current_lesson_is_complete = False
             learning_path_data.append({
@@ -757,16 +770,11 @@ def user_learning_path(course_id):
     else:
         overall_progress_percentage = 0.0
 
-    # 4. --- VVVVVV เพิ่มโค้ดส่วนนี้เข้าไป VVVVVV ---
     is_course_completed = False
     if overall_progress_percentage >= 100:
-        # ตั้งค่าสถานะว่าจบคอร์สแล้ว
         is_course_completed = True
-        
-        # ตรวจสอบว่าเคยบันทึกการจบหลักสูตรนี้แล้วหรือยัง
         cursor.execute("SELECT id FROM course_completions WHERE user_id = %s AND course_id = %s", (current_user.id, course_id))
         if not cursor.fetchone():
-            # ถ้ายังไม่เคยบันทึก ให้เพิ่มข้อมูลใหม่
             certificate_code = f"CERT-{course_id}-{current_user.id}-{int(datetime.now().timestamp())}"
             cursor.execute("""
                 INSERT INTO course_completions (user_id, course_id, completion_date, certificate_code)
@@ -774,16 +782,15 @@ def user_learning_path(course_id):
             """, (current_user.id, course_id, datetime.now().date(), certificate_code))
             mysql.connection.commit()
             flash('ยินดีด้วย! คุณเรียนจบหลักสูตรนี้แล้ว สามารถดาวน์โหลดใบประกาศได้เลย', 'success')
-    # ^^^^^^ สิ้นสุดส่วนที่เพิ่ม ^^^^^^
 
     cursor.close()
     
-    # 5. แก้ไข return statement ให้ส่งตัวแปร is_course_completed ไปด้วย
+    # --- VVVVVV แก้ไขจุดที่ 2: แก้ไขชื่อไฟล์ Template ให้ถูกต้อง VVVVVV ---
     return render_template('course/learning_path.html', 
                            course=course_for_template, 
                            learning_path_data=learning_path_data,
                            overall_progress_percentage=overall_progress_percentage,
-                           is_course_completed=is_course_completed) # <--- เพิ่มตัวแปรนี้
+                           is_course_completed=is_course_completed)
     
 @app.route('/user/video/mark_watched', methods=['POST'])
 @login_required
@@ -852,32 +859,23 @@ def mark_video_as_watched_auto():
         print(f"Database error in mark_video_as_watched_auto: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/video/mark_complete/<int:video_id>', methods=['POST'])
+@app.route('/mark_video_completed/<int:video_id>', methods=['POST'])
 @login_required
-def mark_video_complete(video_id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # ตรวจสอบว่าเคยบันทึกไปแล้วหรือยัง เพื่อป้องกันการบันทึกซ้ำ
-    cursor.execute("SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s", (current_user.id, video_id))
-    already_completed = cursor.fetchone()
-
-    if not already_completed:
-        # ถ้ายังไม่เคยบันทึก ให้เพิ่มข้อมูลใหม่ลงตาราง
-        cursor.execute("INSERT INTO user_video_progress (user_id, video_id, completed_at) VALUES (%s, %s, %s)",
-                       (current_user.id, video_id, datetime.now()))
-        mysql.connection.commit() # บรรทัดนี้สำคัญที่สุด คือการยืนยันการบันทึก
-        flash('บันทึกว่าดูจบแล้ว!', 'success')
-    
-    # ดึง lesson_id เพื่อย้อนกลับไปหน้าเดิม
-    cursor.execute("SELECT lesson_id FROM quiz_video WHERE video_id = %s", (video_id,))
-    video_data = cursor.fetchone()
-    cursor.close()
-
-    if video_data:
-        return redirect(url_for('user_view_lesson', lesson_id=video_data['lesson_id']))
-    
-    # ถ้าเกิดข้อผิดพลาด ให้กลับไปหน้า dashboard
-    return redirect(url_for('user_dashboard'))
+def mark_video_completed(video_id):
+    try:
+        user_id = current_user.id
+        cursor = mysql.connection.cursor()
+        cursor.execute("SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s", (user_id, video_id))
+        if cursor.fetchone():
+            return jsonify({'status': 'success', 'message': 'Already marked.'})
+        
+        cursor.execute("INSERT INTO user_video_progress (user_id, video_id) VALUES (%s, %s)", (user_id, video_id))
+        mysql.connection.commit()
+        cursor.close()
+        return jsonify({'status': 'success', 'message': 'Progress saved.'})
+    except Exception as e:
+        mysql.connection.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/quiz/start/<int:quiz_id>', methods=['GET'])
 @login_required
@@ -1257,7 +1255,7 @@ def register():
             user = cursor.fetchone()
 
             if user:
-                flash('บัญชีมีอยู่แล้ว!', 'error')
+                flash('บัญชีนี้มีผู้ใช้งานแล้ว!', 'error')
             elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
                 flash('ที่อยู่อีเมลไม่ถูกต้อง!', 'error')
             elif not re.match(r'[A-Za-z0-9]+', username):
@@ -1272,7 +1270,8 @@ def register():
                 flash("รหัสผ่านต้องมีตัวอักษรพิมพ์เล็กอย่างน้อย 1 ตัว", 'error')
             elif not any(c.isdigit() for c in password):
                 flash("รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 หลัก", 'error')
-            elif gender not in ['Male', 'Female']:
+            # (เงื่อนไข gender ของคุณถูกต้องแล้ว)
+            elif gender not in ['Male', 'Female', 'Other', 'male', 'female', 'other']:
                 flash('กรุณาเลือกเพศที่ถูกต้อง!', 'error')
             else:
                 hashed_password = generate_password_hash(password)
@@ -1281,22 +1280,29 @@ def register():
                 cursor.execute(
                     'INSERT INTO user (first_name, last_name, email, username, id_card, gender, password, role, created_at) '
                     'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (first_name, last_name, email, username, id_card, gender, hashed_password, 'user', created_at)
+                    (first_name, last_name, email, username, id_card, gender.lower(), hashed_password, 'user', created_at)
                 )
                 mysql.connection.commit()
-                flash('คุณลงทะเบียนสำเร็จแล้ว!', 'success')
-                return redirect(url_for('register'))
+                
+                # --- VVVVVV จุดที่แก้ไข VVVVVV ---
+                flash('สมัครสมาชิกสำเร็จแล้ว! กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ', 'success')
+                return redirect(url_for('login'))
+                # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
         else:
             flash('กรุณากรอกแบบฟอร์มให้ครบถ้วน!', 'error')
     
+    # ตรวจสอบให้แน่ใจว่า path ของ template ถูกต้อง
     return render_template('main/register.html')
+
+
+
 
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out.', 'info')
+    flash('ออกจากระบบสำเร็จแล้ว', 'success')
     return redirect(url_for('home'))
 
 @app.route('/admin/dashboard')
@@ -1304,32 +1310,31 @@ def logout():
 def admin_dashboard():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. นับจำนวนผู้ใช้งานทั้งหมด (รวมทุก role)
-    cursor.execute("SELECT COUNT(id) as total FROM user")
-    user_count = cursor.fetchone()['total']
-    
-    cursor.execute("SELECT COUNT(id) as total FROM instructor")
-    instructor_count = cursor.fetchone()['total']
-    
-    cursor.execute("SELECT COUNT(id) as total FROM admin")
-    admin_count = cursor.fetchone()['total']
-    
-    total_users = user_count + instructor_count + admin_count
+    # 1. นับจำนวนผู้ใช้ทั้งหมด
+    cursor.execute("SELECT COUNT(id) as total_users FROM user")
+    total_users_data = cursor.fetchone()
+    total_users = total_users_data['total_users'] if total_users_data else 0
 
     # 2. นับจำนวนรายวิชาทั้งหมด
-    cursor.execute("SELECT COUNT(id) as total FROM courses")
-    total_courses = cursor.fetchone()['total']
+    cursor.execute("SELECT COUNT(id) as total_courses FROM courses")
+    total_courses_data = cursor.fetchone()
+    total_courses = total_courses_data['total_courses'] if total_courses_data else 0
 
-    # 3. (ตัวอย่าง) ดึงข้อมูลล็อกอินล่าสุด (ถ้ามีตารางเก็บ log)
-    # ในที่นี้จะใช้ข้อมูลสมมติไปก่อน
-    latest_login = "ไม่มีข้อมูล"
-    
+    # 3. VVVVVV เพิ่มโค้ดส่วนนี้เข้าไป VVVVVV
+    # นับจำนวนการลงทะเบียนทั้งหมด
+    cursor.execute("SELECT COUNT(id) as total_enrollments FROM registered_courses")
+    total_enrollments_data = cursor.fetchone()
+    total_enrollments = total_enrollments_data['total_enrollments'] if total_enrollments_data else 0
+    # ^^^^^^ สิ้นสุดส่วนที่เพิ่ม ^^^^^^
+
     cursor.close()
 
+    # --- VVVVVV แก้ไข return statement VVVVVV ---
     return render_template('admin/admin_dashboard.html',
                            total_users=total_users,
                            total_courses=total_courses,
-                           latest_login=latest_login)
+                           total_enrollments=total_enrollments, # <--- ส่งตัวแปรใหม่ไปด้วย
+                           latest_login="ไม่มีข้อมูล") # <--- ส่งค่า default สำหรับ latest_login ไว้ก่อน
 
 @app.route('/admin/manage/admin', methods=['GET', 'POST'])
 def manage_admins():

@@ -9,12 +9,10 @@
     <!-- การ์ด: ผู้ใช้งานทั้งหมด -->
     <div class="col-md-4">
         <div class="card text-center shadow-sm h-100">
-            <div class="card-body">
+            <div class="card-body d-flex flex-column justify-content-center">
                 <i class="fas fa-users fa-3x text-primary mb-3"></i>
                 <h5 class="card-title">ผู้ใช้งานทั้งหมด</h5>
-                <p class="card-text fs-1 fw-bold">{{ total_users }}</p>
-                {# เพิ่มลิงก์ไปยังหน้าจัดการผู้ใช้ ถ้ามี #}
-                <a href="#" class="btn btn-outline-primary">จัดการผู้ใช้งาน</a>
+                <p class="card-text fs-1 fw-bold mb-0">{{ total_users }}</p>
             </div>
         </div>
     </div>
@@ -22,24 +20,21 @@
     <!-- การ์ด: รายวิชาทั้งหมด -->
     <div class="col-md-4">
         <div class="card text-center shadow-sm h-100">
-            <div class="card-body">
+            <div class="card-body d-flex flex-column justify-content-center">
                 <i class="fas fa-book fa-3x text-success mb-3"></i>
                 <h5 class="card-title">รายวิชาทั้งหมด</h5>
-                <p class="card-text fs-1 fw-bold">{{ total_courses }}</p>
-                {# เพิ่มลิงก์ไปยังหน้าจัดการคอร์ส ถ้ามี #}
-                <a href="#" class="btn btn-outline-success">จัดการรายวิชา</a>
+                <p class="card-text fs-1 fw-bold mb-0">{{ total_courses }}</p>
             </div>
         </div>
     </div>
 
-    <!-- การ์ด: ล็อกอินล่าสุด -->
+    <!-- การ์ด: การลงทะเบียนทั้งหมด -->
     <div class="col-md-4">
         <div class="card text-center shadow-sm h-100">
-            <div class="card-body">
-                <i class="fas fa-clock fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">ล็อกอินล่าสุด</h5>
-                <p class="card-text fs-4">{{ latest_login }}</p>
-                <a href="#" class="btn btn-outline-warning">ดูประวัติ</a>
+            <div class="card-body d-flex flex-column justify-content-center">
+                <i class="fas fa-user-check fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">การลงทะเบียนทั้งหมด</h5>
+                <p class="card-text fs-1 fw-bold mb-0">{{ total_enrollments }}</p>
             </div>
         </div>
     </div>

@@ -1,117 +1,106 @@
 {% extends 'base.html' %}
 {% block title %}Register{% endblock %}
+
+{% block head_extra %}
+<style>
+  body {
+    background-color: #f0f2f5;
+  }
+  .card {
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  .logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin-bottom: 15px;
+  }
+  .btn-cyan {
+    background-color: #00bcd4;
+    color: white;
+  }
+  .btn-cyan:hover {
+    background-color: #0097a7;
+    color: white;
+  }
+  .text-cyan {
+    color: #00bcd4;
+  }
+</style>
+{% endblock %}
+
+
 {% block content %}
+<div class="container d-flex justify-content-center align-items-center min-vh-100 py-5">
+  <div class="card p-4 w-100" style="max-width: 900px;">
+    <div class="row g-0">
+      <div class="col-md-5 text-center d-flex flex-column justify-content-center align-items-center bg-white p-4 rounded-start">
+        <img src="{{ url_for('static', filename='img/about.jpg') }}" class="logo" alt="Logo" style="border-radius: 50%; width: 70px; height: 70px; object-fit: cover;">
+        <h4 class="text-cyan">Register</h4>
+        <p class="text-muted">Create your account to start learning!</p>
+      </div>
+      <div class="col-md-7 p-4">
 
-<head>
-  
-  <style>
-    body {
-      background-color: #f0f2f5;
-    }
-    .card {
-      border-radius: 15px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    .logo {
-      width: 60px;
-      height: 60px;
-      object-fit: contain;
-      margin-bottom: 15px;
-    }
-    .btn-cyan {
-      background-color: #00bcd4;
-      color: white;
-    }
-    .btn-cyan:hover {
-      background-color: #0097a7;
-      color: white;
-    }
-    .text-cyan {
-      color: #00bcd4;
-    }
-  </style>
-</head>
-<body>
-  <div class="container d-flex justify-content-center align-items-center min-vh-100">
-    <div class="card p-4 w-100" style="max-width: 900px;">
-      <div class="row">
-        <div class="col-md-5 text-center d-flex flex-column justify-content-center align-items-center bg-white p-4">
-          <img src="{{ url_for('static', filename='img/about.jpg') }}" class="logo" alt="Logo"style="border-radius: 50%; width: 70px; height: 70px; object-fit: cover;">
-          <h4 class="text-cyan">Register</h4>
-          <p class="text-muted">Create your account to start learning!</p>
-        </div>
-        <div class="col-md-7">
+        <!-- ================================================= -->
+        <!-- VVVVVV เพิ่มส่วนแสดง Flash Message ตรงนี้ VVVVVV -->
+        <!-- ================================================= -->
+        {% include 'component/flash_messages.html' %}
+        <!-- ================================================= -->
+        <!-- ^^^^^^ สิ้นสุดส่วนแสดง Flash Message ^^^^^^ -->
+        <!-- ================================================= -->
 
-           <!-- ✨ Flash Messages ตรงนี้ -->
-          {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <ul class="flashes">
-                    {% for category, message in messages %}
-                    <script type="text/javascript">
-                        Swal.fire({
-                            title: "{{message}}",
-                            icon: "{{category}}",
-                            footer: '<a href="/login">กดนี่ที่เพื่อล็อคอิน</a>'
-                        });
-                    </script>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-                {% endwith %}
-          <form method="POST" action="/register">
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">First Name</label>
-                <input type="text" class="form-control" name="first_name" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Last Name</label>
-                <input type="text" class="form-control" name="last_name" required>
-              </div>
+        <form method="POST" action="{{ url_for('register') }}">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">First Name</label>
+              <input type="text" class="form-control" name="first_name" required>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Username</label>
-              <input type="text" class="form-control" name="username" required>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-control" name="last_name" required>
             </div>
-            <div class="mb-3">
-              <label class="form-label">National ID</label>
-              <input type="text" class="form-control" name="id_card" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">National ID</label>
+            <input type="text" class="form-control" name="id_card" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Gender</label>
+            <select class="form-select" name="gender" required>
+              <option value="" disabled selected>Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-control" name="password" required>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" name="email" required>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Confirm Password</label>
+              <input type="password" class="form-control" name="confirm_password" required>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Gender</label>
-              <select class="form-select" name="gender" required>
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" name="password" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Confirm Password</label>
-                <input type="password" class="form-control" name="confirm_password" required>
-              </div>
-            </div>
-            <div class="d-grid">
-              <button type="submit" class="btn btn-cyan">Register</button>
-            </div>
-            <p class="mt-3 text-center">Already have an account? <a href="{{ url_for('login') }}" class="text-cyan">Login</a></p>
-          </form>
-        </div>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-cyan">Register</button>
+          </div>
+          <p class="mt-3 text-center">Already have an account? <a href="{{ url_for('login') }}" class="text-cyan">Login</a></p>
+        </form>
       </div>
     </div>
   </div>
-</body>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-</html>
-
+</div>
 {% endblock %}
+
+{# เราไม่จำเป็นต้องใส่ block scripts ที่นี่แล้ว เพราะ base.html มีอยู่แล้ว #}
+{# และ flash_messages.html ก็จะถูกเรียกใช้จาก block content โดยตรง #}
