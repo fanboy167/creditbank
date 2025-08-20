@@ -948,7 +948,7 @@ def take_quiz(quiz_id):
     cursor.close()
     
     # ส่งข้อมูลไปที่หน้า quiz_page.html
-    return render_template('main/quiz_page.html', quiz=quiz, questions=questions)
+    return render_template('course/quiz_page.html', quiz=quiz, questions=questions)
 
 @app.route('/submit_quiz/<int:quiz_id>', methods=['POST'])
 @login_required

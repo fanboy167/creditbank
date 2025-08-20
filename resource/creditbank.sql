@@ -1,13 +1,14 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 4.7.4
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 13, 2025 at 09:19 PM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- Generation Time: Aug 20, 2025 at 07:53 PM
+-- Server version: 10.1.29-MariaDB
+-- PHP Version: 7.2.0
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -38,7 +39,7 @@ CREATE TABLE `admin` (
   `role` enum('admin') NOT NULL,
   `tel` varchar(20) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `admin`
@@ -58,7 +59,7 @@ INSERT INTO `admin` (`id`, `first_name`, `last_name`, `email`, `username`, `gend
 CREATE TABLE `categories` (
   `id` int(11) NOT NULL,
   `name` varchar(200) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `categories`
@@ -77,13 +78,13 @@ CREATE TABLE `courses` (
   `id` int(11) NOT NULL,
   `featured_image` varchar(255) DEFAULT NULL,
   `title` varchar(255) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `instructor_id` int(11) NOT NULL,
-  `categories_id` int(11) NOT NULL,
-  `description` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `instructor_id` int(11) DEFAULT NULL,
+  `categories_id` int(11) DEFAULT NULL,
+  `description` text,
   `status` enum('publish','draft') NOT NULL DEFAULT 'draft',
   `featured_video` varchar(300) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `courses`
@@ -104,7 +105,7 @@ CREATE TABLE `course_completions` (
   `course_id` int(11) NOT NULL,
   `completion_date` date NOT NULL,
   `certificate_code` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `course_completions`
@@ -130,7 +131,7 @@ CREATE TABLE `instructor` (
   `role` enum('instructor') NOT NULL,
   `tel` varchar(20) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `instructor`
@@ -152,8 +153,8 @@ CREATE TABLE `lesson` (
   `lesson_date` datetime NOT NULL,
   `course_id` int(11) NOT NULL,
   `instructor_id` int(11) NOT NULL,
-  `description` text DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `description` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `lesson`
@@ -187,7 +188,7 @@ CREATE TABLE `questions` (
   `choice_b_image` varchar(255) NOT NULL,
   `choice_c_image` varchar(255) NOT NULL,
   `choice_d_image` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `questions`
@@ -258,7 +259,7 @@ CREATE TABLE `quiz` (
   `passing_percentage` int(11) NOT NULL,
   `quiz_date` datetime NOT NULL,
   `quiz_type` enum('Pre-test','Post_test','','') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `quiz`
@@ -286,13 +287,13 @@ CREATE TABLE `quiz_video` (
   `video_id` int(11) NOT NULL,
   `title` varchar(255) NOT NULL,
   `youtube_link` varchar(255) NOT NULL,
-  `description` text DEFAULT NULL,
+  `description` text,
   `time_duration` varchar(50) DEFAULT NULL,
-  `preview` text DEFAULT NULL,
+  `preview` text,
   `video_image` varchar(255) DEFAULT NULL,
   `quiz_id` int(11) DEFAULT NULL,
   `lesson_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `quiz_video`
@@ -325,17 +326,16 @@ CREATE TABLE `registered_courses` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `course_id` int(11) NOT NULL,
-  `registered_at` datetime DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `registered_at` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `registered_courses`
 --
 
 INSERT INTO `registered_courses` (`id`, `user_id`, `course_id`, `registered_at`) VALUES
-(30, 34, 12, '2025-07-21 13:48:53'),
-(31, 6, 12, '2025-08-07 14:54:08'),
-(32, 3, 12, '2025-08-13 16:20:59');
+(33, 34, 12, '2025-08-21 00:12:26'),
+(34, 1, 12, '2025-08-21 00:25:31');
 
 -- --------------------------------------------------------
 
@@ -353,17 +353,19 @@ CREATE TABLE `user` (
   `gender` enum('male','female','other') NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` enum('user') NOT NULL DEFAULT 'user',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `profile_image` varchar(255) NOT NULL DEFAULT 'default.jpg',
   `tel` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `user`
 --
 
 INSERT INTO `user` (`id`, `first_name`, `last_name`, `email`, `username`, `id_card`, `gender`, `password`, `role`, `created_at`, `profile_image`, `tel`) VALUES
-(34, 'ubann', 'titu', 'qwer@gmail.com', 'user', '7777777754545', '', 'scrypt:32768:8:1$NUevnNNTHXSBUFvB$74d34d9e28b8030da208d104ba294a9c8e4c538b0385f874dcb2408e5eb49ce944735c159b00df4bd2a902b0289bb571a2fbbc37c6b57f82bf6029a6435bd253', 'user', '2025-06-09 09:41:39', '34_20250731135048_gg.png', '0987676789');
+(1, 'ice', 'supichet', 'dddff@gmail.com', 'user1', '4256789876534', '', 'scrypt:32768:8:1$FjkiC19YZvGRrNDQ$4ec07437a3f4df40a42223d855a31f18202e2c5fd0666a1fac69f596297afdc6f45df05a4f4888b910a1178311f11aa718fbda12b12fe7c3bd9ddb343b2ace03', 'user', '2025-08-20 17:25:16', '0_20250821002749_images.png', ''),
+(34, 'pond', 'athittanat', 'qwer@gmail.com', 'user', '7777777754545', '', 'scrypt:32768:8:1$NUevnNNTHXSBUFvB$74d34d9e28b8030da208d104ba294a9c8e4c538b0385f874dcb2408e5eb49ce944735c159b00df4bd2a902b0289bb571a2fbbc37c6b57f82bf6029a6435bd253', 'user', '2025-06-09 09:41:39', '34_20250731135048_gg.png', '0987676789'),
+(35, 'tee', 'komgrit', 'ddppgg@gmail.com', 'user2', '7777567754545', 'male', 'scrypt:32768:8:1$3ytS0lPxsQyRWB4I$0c0f6cd65158fb18e9c11c65d42ba1fc7e63deb2e97011ada9e79ad769c7f99903c4df911027729d6bc65a7573946a9cf1b43febfc649665fdcaebd53bc6f4f2', 'user', '2025-08-20 17:51:17', 'default.jpg', '');
 
 -- --------------------------------------------------------
 
@@ -376,16 +378,9 @@ CREATE TABLE `user_lesson_progress` (
   `user_id` int(11) NOT NULL,
   `video_id` int(11) NOT NULL,
   `lesson_id` int(11) NOT NULL,
-  `is_completed` tinyint(1) DEFAULT 0,
-  `completed_at` datetime DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `user_lesson_progress`
---
-
-INSERT INTO `user_lesson_progress` (`id`, `user_id`, `video_id`, `lesson_id`, `is_completed`, `completed_at`) VALUES
-(0, 34, 66, 7, 1, '2025-07-31 14:39:18');
+  `is_completed` tinyint(1) DEFAULT '0',
+  `completed_at` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
@@ -397,31 +392,37 @@ CREATE TABLE `user_quiz_attempts` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `quiz_id` int(11) NOT NULL,
-  `score` int(11) DEFAULT 0,
+  `score` int(11) DEFAULT '0',
   `total_questions` int(11) NOT NULL,
   `percentage` decimal(5,2) NOT NULL,
-  `passed` tinyint(1) DEFAULT 0,
-  `attempt_date` datetime DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `passed` tinyint(1) DEFAULT '0',
+  `attempt_date` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `user_quiz_attempts`
 --
 
 INSERT INTO `user_quiz_attempts` (`id`, `user_id`, `quiz_id`, `score`, `total_questions`, `percentage`, `passed`, `attempt_date`) VALUES
-(1, 34, 42, 3, 0, 0.00, 1, '2025-07-31 14:45:20'),
-(2, 34, 43, 2, 0, 0.00, 0, '2025-07-31 15:06:21'),
-(3, 34, 43, 5, 0, 0.00, 1, '2025-07-31 15:07:12'),
-(4, 34, 44, 3, 0, 0.00, 1, '2025-08-04 13:47:13'),
-(5, 34, 42, 2, 0, 0.00, 1, '2025-08-13 01:19:37'),
-(6, 34, 45, 5, 0, 0.00, 1, '2025-08-13 16:18:35'),
-(7, 3, 42, 1, 0, 0.00, 1, '2025-08-13 18:14:13'),
-(8, 34, 46, 0, 0, 0.00, 1, '2025-08-13 18:42:57'),
-(9, 34, 47, 5, 5, 100.00, 1, '2025-08-13 19:27:04'),
-(10, 34, 48, 1, 5, 20.00, 1, '2025-08-13 19:30:19'),
-(11, 34, 49, 5, 5, 100.00, 1, '2025-08-13 19:32:56'),
-(12, 34, 50, 0, 5, 0.00, 1, '2025-08-13 19:33:06'),
-(13, 34, 51, 4, 5, 80.00, 1, '2025-08-13 19:34:05');
+(14, 34, 42, 2, 5, '40.00', 1, '2025-08-21 00:12:44'),
+(15, 34, 43, 4, 5, '80.00', 1, '2025-08-21 00:14:26'),
+(16, 34, 44, 0, 5, '0.00', 1, '2025-08-21 00:15:05'),
+(17, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:15:21'),
+(18, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:18:23'),
+(19, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:18:51'),
+(20, 34, 45, 4, 5, '80.00', 1, '2025-08-21 00:19:36'),
+(21, 34, 46, 1, 5, '20.00', 1, '2025-08-21 00:19:45'),
+(22, 34, 47, 4, 5, '80.00', 1, '2025-08-21 00:20:00'),
+(23, 34, 48, 0, 5, '0.00', 1, '2025-08-21 00:20:31'),
+(24, 34, 49, 4, 5, '80.00', 1, '2025-08-21 00:20:53'),
+(25, 34, 50, 1, 5, '20.00', 1, '2025-08-21 00:21:02'),
+(26, 34, 51, 2, 5, '40.00', 0, '2025-08-21 00:21:23'),
+(27, 34, 51, 4, 5, '80.00', 1, '2025-08-21 00:23:13'),
+(28, 1, 42, 1, 5, '20.00', 1, '2025-08-21 00:25:42'),
+(29, 1, 43, 1, 5, '20.00', 0, '2025-08-21 00:25:57'),
+(30, 1, 43, 3, 5, '60.00', 0, '2025-08-21 00:26:06'),
+(31, 1, 43, 4, 5, '80.00', 1, '2025-08-21 00:26:14'),
+(32, 1, 44, 2, 5, '40.00', 1, '2025-08-21 00:26:25');
 
 -- --------------------------------------------------------
 
@@ -434,18 +435,20 @@ CREATE TABLE `user_video_progress` (
   `user_id` int(11) NOT NULL,
   `video_id` int(11) NOT NULL,
   `completed_at` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `user_video_progress`
 --
 
 INSERT INTO `user_video_progress` (`id`, `user_id`, `video_id`, `completed_at`) VALUES
-(4, 34, 63, '2025-07-31 14:45:28'),
-(5, 34, 66, '2025-08-13 18:42:49'),
-(6, 34, 69, '2025-08-13 18:43:19'),
-(7, 34, 72, '2025-08-13 19:30:31'),
-(8, 34, 75, '2025-08-13 19:33:16');
+(9, 34, 63, '0000-00-00 00:00:00'),
+(10, 34, 66, '0000-00-00 00:00:00'),
+(11, 34, 69, '0000-00-00 00:00:00'),
+(12, 34, 72, '0000-00-00 00:00:00'),
+(13, 34, 75, '0000-00-00 00:00:00'),
+(14, 0, 63, '0000-00-00 00:00:00'),
+(15, 0, 66, '0000-00-00 00:00:00');
 
 --
 -- Indexes for dumped tables
@@ -476,7 +479,8 @@ ALTER TABLE `courses`
 --
 ALTER TABLE `course_completions`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `user_course_unique` (`user_id`,`course_id`);
+  ADD UNIQUE KEY `user_course_unique` (`user_id`,`course_id`),
+  ADD KEY `fk_completions_courses_relation` (`course_id`);
 
 --
 -- Indexes for table `instructor`
@@ -488,7 +492,8 @@ ALTER TABLE `instructor`
 -- Indexes for table `lesson`
 --
 ALTER TABLE `lesson`
-  ADD PRIMARY KEY (`lesson_id`);
+  ADD PRIMARY KEY (`lesson_id`),
+  ADD KEY `fk_lesson_to_courses_link` (`course_id`);
 
 --
 -- Indexes for table `questions`
@@ -519,6 +524,12 @@ ALTER TABLE `registered_courses`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `user_id` (`user_id`,`course_id`),
   ADD KEY `course_id` (`course_id`);
+
+--
+-- Indexes for table `user`
+--
+ALTER TABLE `user`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `user_lesson_progress`
@@ -601,19 +612,86 @@ ALTER TABLE `quiz_video`
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+
+--
+-- AUTO_INCREMENT for table `user`
+--
+ALTER TABLE `user`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `user_quiz_attempts`
 --
 ALTER TABLE `user_quiz_attempts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `user_video_progress`
 --
 ALTER TABLE `user_video_progress`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `courses`
+--
+ALTER TABLE `courses`
+  ADD CONSTRAINT `fk_courses_categories_relation` FOREIGN KEY (`categories_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_courses_instructor_relation` FOREIGN KEY (`instructor_id`) REFERENCES `instructor` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Constraints for table `course_completions`
+--
+ALTER TABLE `course_completions`
+  ADD CONSTRAINT `fk_completions_courses_relation` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_completions_user_relation` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `lesson`
+--
+ALTER TABLE `lesson`
+  ADD CONSTRAINT `fk_lesson_courses_relation` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `questions`
+--
+ALTER TABLE `questions`
+  ADD CONSTRAINT `fk_questions_quiz_relation` FOREIGN KEY (`quiz_id`) REFERENCES `quiz` (`quiz_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `quiz`
+--
+ALTER TABLE `quiz`
+  ADD CONSTRAINT `fk_quiz_lesson_relation` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`lesson_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `quiz_video`
+--
+ALTER TABLE `quiz_video`
+  ADD CONSTRAINT `fk_quizvideo_lesson_relation` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`lesson_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `registered_courses`
+--
+ALTER TABLE `registered_courses`
+  ADD CONSTRAINT `fk_regcourses_courses_relation` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_regcourses_user_relation` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `user_quiz_attempts`
+--
+ALTER TABLE `user_quiz_attempts`
+  ADD CONSTRAINT `fk_attempts_quiz_relation` FOREIGN KEY (`quiz_id`) REFERENCES `quiz` (`quiz_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `user_video_progress`
+--
+ALTER TABLE `user_video_progress`
+  ADD CONSTRAINT `fk_progress_video_relation` FOREIGN KEY (`video_id`) REFERENCES `quiz_video` (`video_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
