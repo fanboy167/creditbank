@@ -1,41 +1,46 @@
 {% extends "admin/admin_layout.html" %}
-
-{% block title %}เพิ่มแบบทดสอบ{% endblock %}
+{% block title %}เพิ่มแบบทดสอบใหม่{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">เพิ่มแบบทดสอบ</h2>
+<h2 class="mb-4">เพิ่มแบบทดสอบใหม่</h2>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="quiz_name" class="form-label">ชื่อแบบทดสอบ</label>
+                <input type="text" class="form-control" id="quiz_name" name="quiz_name" required>
+            </div>
 
-<form method="POST" action="{{ url_for('add_quiz') }}">
-  <div class="mb-3">
-    <label for="quiz_name" class="form-label">ชื่อแบบทดสอบ</label>
-    <input type="text" class="form-control" id="quiz_name" name="quiz_name" required>
-  </div>
+            <div class="mb-3">
+                <label for="quiz_type" class="form-label">ประเภทแบบทดสอบ</label>
+                <select class="form-select" id="quiz_type" name="quiz_type" required>
+                    <option value="" disabled selected>-- เลือกประเภท --</option>
+                    <option value="Pre-test">Pre-test (ก่อนเรียน)</option>
+                    <option value="Post_test">Post-test (หลังเรียน)</option>
+                    <option value="Other">Other (อื่นๆ)</option>
+                </select>
+            </div>
 
-  <div class="mb-3">
-    <label for="quiz_type" class="form-label">ประเภทแบบทดสอบ</label>
-    <select class="form-select" id="quiz_type" name="quiz_type" required>
-      <option value="" disabled selected>-- เลือกประเภท --</option>
-      <option value="Pre-test">Pre-test</option>
-      <option value="Post_test">Post-test</option>
-    </select>
-  </div>
+            <div class="mb-3">
+                <label for="lesson_id" class="form-label">เลือกบทเรียน</label>
+                <select class="form-select" id="lesson_id" name="lesson_id" required>
+                    <option value="0" disabled selected>-- กรุณาเลือกบทเรียน --</option>
+                    {% for lesson in lessons %}
+                        <option value="{{ lesson.lesson_id }}">{{ lesson.lesson_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-  <div class="mb-3">
-    <label for="lesson_id" class="form-label">เลือกบทเรียน</label>
-    <select class="form-select" id="lesson_id" name="lesson_id" required>
-      <option value="" disabled selected>-- เลือกบทเรียน --</option>
-      {% for lesson in lessons %}
-      <option value="{{ lesson.lesson_id }}">{{ lesson.lesson_name }}</option>
-      {% endfor %}
-    </select>
-  </div>
+            <div class="mb-3">
+                <label for="passing_percentage" class="form-label">เกณฑ์ผ่าน (%)</label>
+                <input type="number" class="form-control" id="passing_percentage" name="passing_percentage" min="0" max="100" required>
+            </div>
 
-  <div class="mb-3">
-    <label for="passing_percentage" class="form-label">เกณฑ์ผ่าน (%)</label>
-    <input type="number" class="form-control" id="passing_percentage" name="passing_percentage" min="0" max="100" required>
-  </div>
-
-  <button type="submit" class="btn btn-primary">บันทึกแบบทดสอบ</button>
-  <a href="{{ url_for('quiz_list', lesson_id=lessons[0].lesson_id if lessons else 0) }}" class="btn btn-secondary ms-2">ยกเลิก</a>
-</form>
+            <button type="submit" class="btn btn-primary">บันทึกแบบทดสอบ</button>
+            
+            <!-- VVVVVV แก้ไขลิงก์ "ยกเลิก" ให้กลับไปหน้า Dashboard แทน VVVVVV -->
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">ยกเลิก</a>
+        </form>
+    </div>
+</div>
 {% endblock %}

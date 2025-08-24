@@ -1,14 +1,13 @@
 -- phpMyAdmin SQL Dump
--- version 4.7.4
+-- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 20, 2025 at 07:53 PM
--- Server version: 10.1.29-MariaDB
--- PHP Version: 7.2.0
+-- Generation Time: Aug 24, 2025 at 08:29 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -39,7 +38,7 @@ CREATE TABLE `admin` (
   `role` enum('admin') NOT NULL,
   `tel` varchar(20) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `admin`
@@ -59,7 +58,7 @@ INSERT INTO `admin` (`id`, `first_name`, `last_name`, `email`, `username`, `gend
 CREATE TABLE `categories` (
   `id` int(11) NOT NULL,
   `name` varchar(200) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `categories`
@@ -78,20 +77,22 @@ CREATE TABLE `courses` (
   `id` int(11) NOT NULL,
   `featured_image` varchar(255) DEFAULT NULL,
   `title` varchar(255) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `instructor_id` int(11) DEFAULT NULL,
   `categories_id` int(11) DEFAULT NULL,
-  `description` text,
+  `description` text DEFAULT NULL,
   `status` enum('publish','draft') NOT NULL DEFAULT 'draft',
   `featured_video` varchar(300) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `courses`
 --
 
 INSERT INTO `courses` (`id`, `featured_image`, `title`, `created_at`, `instructor_id`, `categories_id`, `description`, `status`, `featured_video`) VALUES
-(12, '12_20250804094252_course.jpg', 'Information Systems Security', '2025-06-16 19:00:01', 6, 1, 'รายวิชา Information Systems Security ศึกษาเกี่ยวกับหลักการ แนวคิด เทคนิค และเครื่องมือต่าง ๆ ที่ใช้ในการรักษาความมั่นคงปลอดภัยของระบบสารสนเทศ ครอบคลุมการป้องกันข้อมูล การจัดการความเสี่ยง การเข้ารหัส การพิสูจน์ตัวตน การควบคุมการเข้าถึง ตลอดจนการตรวจสอบและตอบสนองต่อเหตุการณ์ด้านความมั่นคง เพื่อให้ระบบสารสนเทศมีความปลอดภัยจากการโจมตี การบุกรุก หรือความเสียหายที่อาจเกิดขึ้น', 'publish', NULL);
+(12, '12_20250804094252_course.jpg', 'Information Systems Security', '2025-06-16 19:00:01', 6, 1, 'รายวิชา Information Systems Security ศึกษาเกี่ยวกับหลักการ แนวคิด เทคนิค และเครื่องมือต่าง ๆ ที่ใช้ในการรักษาความมั่นคงปลอดภัยของระบบสารสนเทศ ครอบคลุมการป้องกันข้อมูล การจัดการความเสี่ยง การเข้ารหัส การพิสูจน์ตัวตน การควบคุมการเข้าถึง ตลอดจนการตรวจสอบและตอบสนองต่อเหตุการณ์ด้านความมั่นคง เพื่อให้ระบบสารสนเทศมีความปลอดภัยจากการโจมตี การบุกรุก หรือความเสียหายที่อาจเกิดขึ้น', 'publish', NULL),
+(13, 'image.jpg', 'cyber', '2025-08-25 01:00:27', 8, 1, 'ะำเไำเไเไำเไำ', 'publish', 'PLAYERUNKNOWNS_BATTLEGROUNDS_2025.08.17_-_22.50.53.07.mp4'),
+(14, '1756058867_image.png', 'cyber', '2025-08-25 01:07:47', 7, 1, 'efwefwefwefwfw', 'publish', '1756058867_PLAYERUNKNOWNS_BATTLEGROUNDS_2025.08.17_-_22.50.53.07.mp4');
 
 -- --------------------------------------------------------
 
@@ -105,7 +106,7 @@ CREATE TABLE `course_completions` (
   `course_id` int(11) NOT NULL,
   `completion_date` date NOT NULL,
   `certificate_code` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `course_completions`
@@ -131,7 +132,7 @@ CREATE TABLE `instructor` (
   `role` enum('instructor') NOT NULL,
   `tel` varchar(20) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `instructor`
@@ -139,7 +140,8 @@ CREATE TABLE `instructor` (
 
 INSERT INTO `instructor` (`id`, `first_name`, `last_name`, `email`, `username`, `gender`, `password`, `role`, `tel`, `profile_image`) VALUES
 (6, 'jamjann', 'mungpijit', 'instructor@gmail.com', 'instructor', 'Female', 'scrypt:32768:8:1$zBTKTEERcHaUHLtz$138f13bcafffe559ac5c294ffa493f010e93b3294351e8b48ee76910a2f58afc555df4ae45e2dc50ae9ee7b69e5fecb8cb79c3b590d4708e65ad93572a9d7ffc', 'instructor', '0944334433', '6_20250807145903_kk.png'),
-(7, 'lao', 'ty', 'twfsdfdd@gmail.com', 'test2', 'Female', 'scrypt:32768:8:1$BJZDSC4sBWip9fRo$6065696a9106fc04616baade252d53717f96e929c9f56ffa94db76af067ff61309426bc823cf653b25297cf689654df05079bada812502ab2531efa2150fca6b', 'instructor', '0944334778', NULL);
+(7, 'lao', 'ty', 'twfsdfdd@gmail.com', 'test2', 'Female', 'scrypt:32768:8:1$BJZDSC4sBWip9fRo$6065696a9106fc04616baade252d53717f96e929c9f56ffa94db76af067ff61309426bc823cf653b25297cf689654df05079bada812502ab2531efa2150fca6b', 'instructor', '0944334778', NULL),
+(8, 'pin', 'pinpin', 'pin@gmail.com', 'pin', 'Female', 'scrypt:32768:8:1$jIhGmIPfKkC0CT75$c42d1e5c7a137be7290f64f03b1eee4869393c710534f25d066f70ff7dd07160d3b00a000c52237e0627104f8b27543566de8d2934736f5928f087b2f00dec6e', 'instructor', '0977654443', NULL);
 
 -- --------------------------------------------------------
 
@@ -153,8 +155,8 @@ CREATE TABLE `lesson` (
   `lesson_date` datetime NOT NULL,
   `course_id` int(11) NOT NULL,
   `instructor_id` int(11) NOT NULL,
-  `description` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `description` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `lesson`
@@ -165,7 +167,8 @@ INSERT INTO `lesson` (`lesson_id`, `lesson_name`, `lesson_date`, `course_id`, `i
 (7, 'หน่วยที่ 2 วงจรการพัฒนาระบบความมั่นคงของระบบสารสนเทศ', '2025-07-21 00:00:00', 12, 6, NULL),
 (8, 'หน่วยที่ 3 วิธีการและเทคนิครักษาความมั่นคงของระบบสารสนเทศ', '2025-07-24 00:00:00', 12, 6, NULL),
 (9, 'หน่วยที่ 4 นโยบายในการสร้างความมั่นคงของระบบสารสนเทศ', '2025-07-31 00:00:00', 12, 6, NULL),
-(11, 'หน่วยที่ 5 กลไกในการสร้างความปลอดภัยและเครื่องมือช่วยใน การสร้างมั่นคงของระบบสารสนเทศ', '2025-07-31 00:00:00', 12, 6, NULL);
+(11, 'หน่วยที่ 5 กลไกในการสร้างความปลอดภัยและเครื่องมือช่วยใน การสร้างมั่นคงของระบบสารสนเทศ', '2025-07-31 00:00:00', 12, 6, NULL),
+(12, 'gwrgwr', '2025-08-25 00:00:00', 13, 8, NULL);
 
 -- --------------------------------------------------------
 
@@ -188,7 +191,7 @@ CREATE TABLE `questions` (
   `choice_b_image` varchar(255) NOT NULL,
   `choice_c_image` varchar(255) NOT NULL,
   `choice_d_image` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `questions`
@@ -259,7 +262,7 @@ CREATE TABLE `quiz` (
   `passing_percentage` int(11) NOT NULL,
   `quiz_date` datetime NOT NULL,
   `quiz_type` enum('Pre-test','Post_test','','') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `quiz`
@@ -287,34 +290,36 @@ CREATE TABLE `quiz_video` (
   `video_id` int(11) NOT NULL,
   `title` varchar(255) NOT NULL,
   `youtube_link` varchar(255) NOT NULL,
-  `description` text,
+  `video_file` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
   `time_duration` varchar(50) DEFAULT NULL,
-  `preview` text,
+  `preview` text DEFAULT NULL,
   `video_image` varchar(255) DEFAULT NULL,
   `quiz_id` int(11) DEFAULT NULL,
   `lesson_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `quiz_video`
 --
 
-INSERT INTO `quiz_video` (`video_id`, `title`, `youtube_link`, `description`, `time_duration`, `preview`, `video_image`, `quiz_id`, `lesson_id`) VALUES
-(62, 'Pre-test', '', NULL, NULL, NULL, NULL, 42, 6),
-(63, 'บทที่1 แบบทดสอบพื้นฐานความมั่นคงของระบบสารสนเทศ', 'https://youtu.be/Coh7oRmw9cs?si=dupdGug80EGq3r29', 'Information System Security | หน่วยที่ 1 ความรู้พื้นฐานเกี่ยวกับความมั่นคงของระบบสารสนเทศ\r\n', '11:21', NULL, '', NULL, 6),
-(64, 'Post-test', '', NULL, NULL, NULL, NULL, 43, 6),
-(65, 'Pre-test', '', NULL, NULL, NULL, NULL, 44, 7),
-(66, 'บทที่2 วงจรการพัฒนาระบบความมั ่นคงของระบบสารสนเทศ', 'https://youtu.be/6FGpjd485c4?si=ZKkXuvI_Ty3yB9cg', '', '17:41', NULL, '', NULL, 7),
-(67, 'Post-test', '', NULL, NULL, NULL, NULL, 45, 7),
-(68, 'Pre-test', '', NULL, NULL, NULL, NULL, 46, 8),
-(69, 'หน่วยที่3 วิธีการและเทคนิครักษาความมั ่นคงของระบบ  สารสนเทศ', 'https://youtu.be/Nh5npqoTLLQ?si=8S8oIQI3ALCxclJY', '', '17:20', NULL, '', NULL, 8),
-(70, 'Post-test', '', NULL, NULL, NULL, NULL, 47, 8),
-(71, 'Pre-test', '', NULL, NULL, NULL, NULL, 48, 9),
-(72, 'หน่วยที่4 นโยบายในการสร้างความมั ่นคงของระบบสารสนเทศ', 'https://youtu.be/RceFsg0h_Zw?si=QzJ1oLMaQhXSV7P3', '', '8:01', NULL, '', NULL, 9),
-(73, 'Post-test', '', NULL, NULL, NULL, NULL, 49, 9),
-(74, 'Pre-test', '', NULL, NULL, NULL, NULL, 50, 11),
-(75, 'หน่วยที่5 กลไกในการสร้างความปลอดภัยและเครื ่องมือช่วยใน  การสร้างมั่นคงของระบบสารสนเทศ', 'https://youtu.be/oPPN7Q6DEvg?si=i2iFDNzCgRrWWhCf', '', '5:01', NULL, '', NULL, 11),
-(76, 'Post-test', '', NULL, NULL, NULL, NULL, 51, 11);
+INSERT INTO `quiz_video` (`video_id`, `title`, `youtube_link`, `video_file`, `description`, `time_duration`, `preview`, `video_image`, `quiz_id`, `lesson_id`) VALUES
+(62, 'Pre-test', '', NULL, NULL, NULL, NULL, NULL, 42, 6),
+(63, 'บทที่1 แบบทดสอบพื้นฐานความมั่นคงของระบบสารสนเทศ', 'https://youtu.be/Coh7oRmw9cs?si=dupdGug80EGq3r29', NULL, 'Information System Security | หน่วยที่ 1 ความรู้พื้นฐานเกี่ยวกับความมั่นคงของระบบสารสนเทศ\r\n', '11:21', NULL, '', NULL, 6),
+(64, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 43, 6),
+(65, 'Pre-test', '', NULL, NULL, NULL, NULL, NULL, 44, 7),
+(66, 'บทที่2 วงจรการพัฒนาระบบความมั ่นคงของระบบสารสนเทศ', 'https://youtu.be/6FGpjd485c4?si=ZKkXuvI_Ty3yB9cg', NULL, '', '17:41', NULL, '', NULL, 7),
+(67, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 45, 7),
+(68, 'Pre-test', '', NULL, NULL, NULL, NULL, NULL, 46, 8),
+(69, 'หน่วยที่3 วิธีการและเทคนิครักษาความมั ่นคงของระบบ  สารสนเทศ', 'https://youtu.be/Nh5npqoTLLQ?si=8S8oIQI3ALCxclJY', NULL, '', '17:20', NULL, '', NULL, 8),
+(70, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 47, 8),
+(71, 'Pre-test', '', NULL, NULL, NULL, NULL, NULL, 48, 9),
+(72, 'หน่วยที่4 นโยบายในการสร้างความมั ่นคงของระบบสารสนเทศ', 'https://youtu.be/RceFsg0h_Zw?si=QzJ1oLMaQhXSV7P3', NULL, '', '8:01', NULL, '', NULL, 9),
+(73, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 49, 9),
+(74, 'Pre-test', '', NULL, NULL, NULL, NULL, NULL, 50, 11),
+(75, 'หน่วยที่5 กลไกในการสร้างความปลอดภัยและเครื ่องมือช่วยใน  การสร้างมั่นคงของระบบสารสนเทศ', 'https://youtu.be/oPPN7Q6DEvg?si=i2iFDNzCgRrWWhCf', NULL, '', '5:01', NULL, '', NULL, 11),
+(76, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 51, 11),
+(77, 'Post-test', '', NULL, NULL, NULL, NULL, NULL, 51, 12);
 
 -- --------------------------------------------------------
 
@@ -326,8 +331,8 @@ CREATE TABLE `registered_courses` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `course_id` int(11) NOT NULL,
-  `registered_at` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `registered_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `registered_courses`
@@ -353,10 +358,10 @@ CREATE TABLE `user` (
   `gender` enum('male','female','other') NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` enum('user') NOT NULL DEFAULT 'user',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `profile_image` varchar(255) NOT NULL DEFAULT 'default.jpg',
   `tel` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user`
@@ -378,9 +383,9 @@ CREATE TABLE `user_lesson_progress` (
   `user_id` int(11) NOT NULL,
   `video_id` int(11) NOT NULL,
   `lesson_id` int(11) NOT NULL,
-  `is_completed` tinyint(1) DEFAULT '0',
-  `completed_at` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `is_completed` tinyint(1) DEFAULT 0,
+  `completed_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -392,37 +397,37 @@ CREATE TABLE `user_quiz_attempts` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `quiz_id` int(11) NOT NULL,
-  `score` int(11) DEFAULT '0',
+  `score` int(11) DEFAULT 0,
   `total_questions` int(11) NOT NULL,
   `percentage` decimal(5,2) NOT NULL,
-  `passed` tinyint(1) DEFAULT '0',
-  `attempt_date` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `passed` tinyint(1) DEFAULT 0,
+  `attempt_date` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user_quiz_attempts`
 --
 
 INSERT INTO `user_quiz_attempts` (`id`, `user_id`, `quiz_id`, `score`, `total_questions`, `percentage`, `passed`, `attempt_date`) VALUES
-(14, 34, 42, 2, 5, '40.00', 1, '2025-08-21 00:12:44'),
-(15, 34, 43, 4, 5, '80.00', 1, '2025-08-21 00:14:26'),
-(16, 34, 44, 0, 5, '0.00', 1, '2025-08-21 00:15:05'),
-(17, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:15:21'),
-(18, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:18:23'),
-(19, 34, 45, 3, 5, '60.00', 0, '2025-08-21 00:18:51'),
-(20, 34, 45, 4, 5, '80.00', 1, '2025-08-21 00:19:36'),
-(21, 34, 46, 1, 5, '20.00', 1, '2025-08-21 00:19:45'),
-(22, 34, 47, 4, 5, '80.00', 1, '2025-08-21 00:20:00'),
-(23, 34, 48, 0, 5, '0.00', 1, '2025-08-21 00:20:31'),
-(24, 34, 49, 4, 5, '80.00', 1, '2025-08-21 00:20:53'),
-(25, 34, 50, 1, 5, '20.00', 1, '2025-08-21 00:21:02'),
-(26, 34, 51, 2, 5, '40.00', 0, '2025-08-21 00:21:23'),
-(27, 34, 51, 4, 5, '80.00', 1, '2025-08-21 00:23:13'),
-(28, 1, 42, 1, 5, '20.00', 1, '2025-08-21 00:25:42'),
-(29, 1, 43, 1, 5, '20.00', 0, '2025-08-21 00:25:57'),
-(30, 1, 43, 3, 5, '60.00', 0, '2025-08-21 00:26:06'),
-(31, 1, 43, 4, 5, '80.00', 1, '2025-08-21 00:26:14'),
-(32, 1, 44, 2, 5, '40.00', 1, '2025-08-21 00:26:25');
+(14, 34, 42, 2, 5, 40.00, 1, '2025-08-21 00:12:44'),
+(15, 34, 43, 4, 5, 80.00, 1, '2025-08-21 00:14:26'),
+(16, 34, 44, 0, 5, 0.00, 1, '2025-08-21 00:15:05'),
+(17, 34, 45, 3, 5, 60.00, 0, '2025-08-21 00:15:21'),
+(18, 34, 45, 3, 5, 60.00, 0, '2025-08-21 00:18:23'),
+(19, 34, 45, 3, 5, 60.00, 0, '2025-08-21 00:18:51'),
+(20, 34, 45, 4, 5, 80.00, 1, '2025-08-21 00:19:36'),
+(21, 34, 46, 1, 5, 20.00, 1, '2025-08-21 00:19:45'),
+(22, 34, 47, 4, 5, 80.00, 1, '2025-08-21 00:20:00'),
+(23, 34, 48, 0, 5, 0.00, 1, '2025-08-21 00:20:31'),
+(24, 34, 49, 4, 5, 80.00, 1, '2025-08-21 00:20:53'),
+(25, 34, 50, 1, 5, 20.00, 1, '2025-08-21 00:21:02'),
+(26, 34, 51, 2, 5, 40.00, 0, '2025-08-21 00:21:23'),
+(27, 34, 51, 4, 5, 80.00, 1, '2025-08-21 00:23:13'),
+(28, 1, 42, 1, 5, 20.00, 1, '2025-08-21 00:25:42'),
+(29, 1, 43, 1, 5, 20.00, 0, '2025-08-21 00:25:57'),
+(30, 1, 43, 3, 5, 60.00, 0, '2025-08-21 00:26:06'),
+(31, 1, 43, 4, 5, 80.00, 1, '2025-08-21 00:26:14'),
+(32, 1, 44, 2, 5, 40.00, 1, '2025-08-21 00:26:25');
 
 -- --------------------------------------------------------
 
@@ -435,7 +440,7 @@ CREATE TABLE `user_video_progress` (
   `user_id` int(11) NOT NULL,
   `video_id` int(11) NOT NULL,
   `completed_at` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user_video_progress`
@@ -570,7 +575,7 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `courses`
 --
 ALTER TABLE `courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `course_completions`
@@ -582,13 +587,13 @@ ALTER TABLE `course_completions`
 -- AUTO_INCREMENT for table `instructor`
 --
 ALTER TABLE `instructor`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `lesson`
 --
 ALTER TABLE `lesson`
-  MODIFY `lesson_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `lesson_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `questions`
@@ -606,7 +611,7 @@ ALTER TABLE `quiz`
 -- AUTO_INCREMENT for table `quiz_video`
 --
 ALTER TABLE `quiz_video`
-  MODIFY `video_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
+  MODIFY `video_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=78;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`

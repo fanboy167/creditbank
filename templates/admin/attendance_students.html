@@ -18,18 +18,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in enrollments %}
-                    <tr>
-                        <td>{{ item.first_name }} {{ item.last_name }}</td>
-                        <td>{{ item.course_title }}</td>
-                        <td>{{ item.instructor_first_name }} {{ item.instructor_last_name }}</td>
-                        <td>{{ item.registered_at.strftime('%d %B %Y') }}</td>
-                    </tr>
+                    {% if enrollments %}
+                        {% for item in enrollments %}
+                        <tr>
+                            <!-- VVVVVV แก้ไขชื่อตัวแปรกลับเป็นเหมือนเดิม VVVVVV -->
+                            <td>{{ item.first_name }} {{ item.last_name }}</td>
+                            
+                            <td>{{ item.course_title }}</td>
+                            <td>{{ item.instructor_first_name or '' }} {{ item.instructor_last_name or '' }}</td>
+                            <td>{{ item.registered_at.strftime('%d/%m/%Y, %H:%M น.') }}</td>
+                        </tr>
+                        {% endfor %}
                     {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted">ยังไม่มีข้อมูลการลงทะเบียนในระบบ</td>
-                    </tr>
-                    {% endfor %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">ยังไม่มีข้อมูลการลงทะเบียนในระบบ</td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
