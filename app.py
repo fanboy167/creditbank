@@ -1239,6 +1239,21 @@ def login():
 
 #     return render_template('main/register.html')
 
+def is_valid_thai_id(id_card):
+    """
+    ฟังก์ชันสำหรับตรวจสอบความถูกต้องของเลขบัตรประชาชนไทย
+    """
+    if not id_card or not id_card.isdigit() or len(id_card) != 13:
+        return False
+    
+    total = 0
+    for i in range(12):
+        total += int(id_card[i]) * (13 - i)
+        
+    checksum = (11 - (total % 11)) % 10
+    
+    return checksum == int(id_card[12])
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -1257,7 +1272,12 @@ def register():
             cursor.execute('SELECT * FROM user WHERE email = %s', (email,))
             user = cursor.fetchone()
 
-            if user:
+            # --- VVVVVV เพิ่มเงื่อนไขการตรวจสอบเลขบัตรประชาชน VVVVVV ---
+            if not is_valid_thai_id(id_card):
+                flash('เลขบัตรประชาชนไม่ถูกต้อง!', 'error')
+            # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
+            
+            elif user:
                 flash('บัญชีนี้มีผู้ใช้งานแล้ว!', 'error')
             elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
                 flash('ที่อยู่อีเมลไม่ถูกต้อง!', 'error')
@@ -1273,7 +1293,6 @@ def register():
                 flash("รหัสผ่านต้องมีตัวอักษรพิมพ์เล็กอย่างน้อย 1 ตัว", 'error')
             elif not any(c.isdigit() for c in password):
                 flash("รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 หลัก", 'error')
-            # (เงื่อนไข gender ของคุณถูกต้องแล้ว)
             elif gender not in ['Male', 'Female', 'Other', 'male', 'female', 'other']:
                 flash('กรุณาเลือกเพศที่ถูกต้อง!', 'error')
             else:
@@ -1287,10 +1306,8 @@ def register():
                 )
                 mysql.connection.commit()
                 
-                # --- VVVVVV จุดที่แก้ไข VVVVVV ---
                 flash('สมัครสมาชิกสำเร็จแล้ว! กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ', 'success')
                 return redirect(url_for('login'))
-                # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
         else:
             flash('กรุณากรอกแบบฟอร์มให้ครบถ้วน!', 'error')
     
