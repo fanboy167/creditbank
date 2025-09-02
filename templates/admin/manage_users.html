@@ -5,7 +5,7 @@
 {% block content %}
 <h2 class="mb-4">เพิ่ม/ลบ ผู้ใช้</h2>
 
-<!-- ฟอร์มเพิ่มผู้ใช้ -->
+<!-- ฟอร์มเพิ่มผู้ใช้ (เหมือนเดิม) -->
 <div class="card p-4 bg-light shadow-sm">
   <form method="POST" action="{{ url_for('manage_users') }}" enctype="multipart/form-data">
     <div class="row mb-3">
@@ -14,42 +14,36 @@
         <input type="text" class="form-control" name="first_name" required>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">นามสกุล</label>
       <div class="col-sm-9">
         <input type="text" class="form-control" name="last_name" required>
       </div>
     </div>
-    
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">เลข ปชช</label>
       <div class="col-sm-9">
         <input type="text" class="form-control" name="id_card" pattern="[0-9]{13}" placeholder="เลขบัตรประชาชน 13 หลัก" required>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">อีเมล</label>
       <div class="col-sm-9">
         <input type="email" class="form-control" name="email" required>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">ชื่อผู้ใช้</label>
       <div class="col-sm-9">
         <input type="text" class="form-control" name="username" required>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">เบอร์โทรศัพท์</label>
       <div class="col-sm-9">
        <input type="tel" class="form-control" name="tel" pattern="[0-9]{10}" required>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">เพศ</label>
       <div class="col-sm-9">
@@ -61,21 +55,18 @@
         </select>
       </div>
     </div>
-
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">รหัสผ่าน</label>
       <div class="col-sm-9">
         <input type="password" class="form-control" name="password" required>
       </div>
     </div>
-
     <div class="row mb-4">
       <label class="col-sm-3 col-form-label">รูปโปรไฟล์</label>
       <div class="col-sm-9">
         <input type="file" class="form-control" name="profile_image" accept="image/*">
       </div>
     </div>
-
     <div class="text-end">
       <button type="submit" class="btn btn-success">
         <i class="fas fa-user-plus me-1"></i> เพิ่มผู้ใช้
@@ -87,40 +78,131 @@
 <!-- รายชื่อผู้ใช้ -->
 <hr>
 <h3 class="mt-4">รายชื่อผู้ใช้</h3>
-<table class="table table-bordered bg-white shadow-sm">
-  <thead class="table-light">
-    <tr>
-      <th>ชื่อ</th>
-      <th>นามสกุล</th>
-      <th>เลข ปชช</th>
-      <th>อีเมล</th>
-      <th>เบอร์โทร</th>
-      <th>ชื่อผู้ใช้</th>
-      <th>จัดการ</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for user in users %}
-    <tr>
-      <td>{{ user.first_name }}</td>
-      <td>{{ user.last_name }}</td>
-      <td>{{ user.id_card }}</td>
-      <td>{{ user.email }}</td>
-      <td>{{ user.tel }}</td>
-      <td>{{ user.username }}</td>
-      <td>
-  <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-primary me-1">
-    <i class="fas fa-edit"></i> แก้ไข
-  </a>
-  <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline;">
-    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('ลบผู้ใช้คนนี้?')">
-      <i class="fas fa-trash-alt"></i> ลบ
-    </button>
-  </form>
-</td>
+<div class="table-responsive">
+    <table class="table table-bordered bg-white shadow-sm align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ชื่อ - นามสกุล</th>
+          <th>อีเมล</th>
+          <th>เบอร์โทร</th>
+          <th>เลข ปชช</th>
+          <th>วันที่สมัคร</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.first_name }} {{ user.last_name }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.tel }}</td>
+          <td>
+              {% if user.id_card %}
+                  <span class="id-card-masked" id="masked-id-{{ user.id }}">
+                      {{ user.id_card[0] }}-{{ user.id_card[1:5] }}-XXXXX-{{ user.id_card[11:13] }}
+                  </span>
+                  <span class="id-card-full" id="full-id-{{ user.id }}" style="display: none;">
+                      {{ user.id_card }}
+                  </span>
+                  <a href="#" class="toggle-id-visibility ms-2" data-userid="{{ user.id }}" title="แสดง/ซ่อน เลขบัตรประชาชน">
+                      <i class="fas fa-eye"></i>
+                  </a>
+              {% else %}
+                  <span class="text-muted">ไม่มีข้อมูล</span>
+              {% endif %}
+          </td>
+          <!-- VVVVVV แก้ไขบรรทัดนี้ VVVVVV -->
+          <td>
+              {% if user.created_at %}
+                  {{ user.created_at.strftime('%d/%m/%Y, %H:%M น.') }}
+              {% else %}
+                  -
+              {% endif %}
+          </td>
+          <!-- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ -->
+          <td>
+              <a href="#" class="btn btn-sm btn-primary me-1">
+                <i class="fas fa-edit"></i> แก้ไข
+              </a>
+              <form action="#" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('ลบผู้ใช้คนนี้?')">
+                  <i class="fas fa-trash-alt"></i> ลบ
+                </button>
+              </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center text-muted">ยังไม่มีผู้ใช้งานในระบบ</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+{% endblock %}
 
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block scripts %}
+<!-- โค้ด JavaScript สำหรับแสดง/ซ่อนเลขบัตรประชาชน (เหมือนเดิม) -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleButtons = document.querySelectorAll('.toggle-id-visibility');
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            const userId = this.dataset.userid;
+            const maskedSpan = document.getElementById(`masked-id-${userId}`);
+            const fullSpan = document.getElementById(`full-id-${userId}`);
+            const icon = this.querySelector('i');
+
+            if (fullSpan.style.display === 'none') {
+                Swal.fire({
+                    title: 'ยืนยันตัวตนผู้ดูแลระบบ',
+                    text: 'กรุณากรอกรหัสผ่านของคุณเพื่อดูข้อมูล',
+                    input: 'password',
+                    showCancelButton: true,
+                    confirmButtonText: 'ยืนยัน',
+                    cancelButtonText: 'ยกเลิก',
+                    showLoaderOnConfirm: true,
+                    preConfirm: (password) => {
+                        return fetch("{{ url_for('admin_verify_password') }}", {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ password: password })
+                        })
+                        .then(response => response.json())
+                        .catch(error => {
+                            Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${error}`);
+                        });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed && result.value.success) {
+                        maskedSpan.style.display = 'none';
+                        fullSpan.style.display = 'inline';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'ยืนยันตัวตนสำเร็จ!',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else if (result.isConfirmed) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'รหัสผ่านไม่ถูกต้อง!',
+                            text: result.value.message || 'กรุณาลองใหม่อีกครั้ง'
+                        });
+                    }
+                });
+            } else {
+                maskedSpan.style.display = 'inline';
+                fullSpan.style.display = 'none';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

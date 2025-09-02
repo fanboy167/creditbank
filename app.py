@@ -1544,47 +1544,69 @@ def delete_instructor(instructor_id):
 
 
 @app.route('/admin/manage/users', methods=['GET', 'POST'])
+@admin_required
 def manage_users():
     if request.method == 'POST':
-        # รับข้อมูลจากฟอร์มเพิ่มผู้ใช้ใหม่
+        # (ส่วนโค้ด POST สำหรับเพิ่มผู้ใช้ของคุณยังคงเหมือนเดิม)
         first_name = request.form['first_name']
         last_name = request.form['last_name']
         email = request.form['email']
         username = request.form['username']
         tel = request.form['tel']
         gender = request.form['gender']
-        id_card = request.form['id_card']  # เพิ่มตรงนี้
+        id_card = request.form['id_card']
         password = request.form['password']
         profile_image = request.files.get('profile_image')
 
-        # แปลงรหัสผ่านเป็น hash
+        # (ควรเพิ่มการตรวจสอบข้อมูลที่นี่ เช่น เลขบัตรประชาชนที่ถูกต้อง)
+
         hashed_password = generate_password_hash(password)
 
         filename = None
-        if profile_image:
-            filename = profile_image.filename
-            upload_path = os.path.join(app.root_path, 'static/profile_images')
-            os.makedirs(upload_path, exist_ok=True)
-            profile_image.save(os.path.join(upload_path, filename))
+        if profile_image and profile_image.filename != '':
+            # (แนะนำให้ใช้ตรรกะสร้างชื่อไฟล์ไม่ซ้ำกันเหมือนที่เราเคยทำ)
+            filename = secure_filename(profile_image.filename)
+            upload_path = os.path.join(app.config['UPLOAD_FOLDER_PROFILE_IMAGES'], filename)
+            profile_image.save(upload_path)
 
-        # บันทึกลงฐานข้อมูล user
         cursor = mysql.connection.cursor()
-        sql = """INSERT INTO user (first_name, last_name, email, username, tel, gender, id_card, password, profile_image)
-                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-        cursor.execute(sql, (first_name, last_name, email, username, tel, gender, id_card, hashed_password, filename))
+        sql = """INSERT INTO user (first_name, last_name, email, username, tel, gender, id_card, password, profile_image, created_at)
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+        cursor.execute(sql, (first_name, last_name, email, username, tel, gender, id_card, hashed_password, filename, datetime.now()))
         mysql.connection.commit()
         cursor.close()
 
         flash('เพิ่มผู้ใช้สำเร็จ!', 'success')
         return redirect(url_for('manage_users'))
 
+    # --- VVVVVV แก้ไขส่วน GET Request VVVVVV ---
     # ดึงข้อมูลผู้ใช้จากฐานข้อมูล (GET)
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM user")
+    # เพิ่ม id, id_card และ created_at เข้าไปใน SELECT เพื่อให้แน่ใจว่าถูกดึงมาด้วย
+    cursor.execute("SELECT id, first_name, last_name, email, username, tel, id_card, gender, created_at FROM user ORDER BY created_at DESC")
     users = cursor.fetchall()
     cursor.close()
 
     return render_template('admin/manage_users.html', users=users)
+
+@app.route('/admin/verify-password', methods=['POST'])
+@admin_required
+def admin_verify_password():
+    password_to_check = request.json.get('password')
+
+    if not password_to_check:
+        return jsonify({'success': False, 'message': 'Password is required'}), 400
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT password FROM admin WHERE id = %s", (current_user.id,))
+    admin = cursor.fetchone()
+    cursor.close()
+
+    if admin and check_password_hash(admin['password'], password_to_check):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'message': 'รหัสผ่านไม่ถูกต้อง'})
+
 
 @app.route('/user/edit/<int:user_id>', methods=['GET', 'POST'])
 def edit_user(user_id):
