@@ -549,47 +549,66 @@ def course_detail(course_id):
 @login_required
 def user_view_lesson(lesson_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    user_id = current_user.id
 
-    # ดึงข้อมูลบทเรียน
+    # ดึงข้อมูลบทเรียน (เหมือนเดิม)
     cursor.execute("SELECT lesson_id, lesson_name, description, course_id FROM lesson WHERE lesson_id = %s", (lesson_id,))
     lesson = cursor.fetchone()
     if not lesson:
         flash('ไม่พบบทเรียนที่ระบุ', 'danger')
         cursor.close()
-        return redirect(url_for('course'))
+        return redirect(url_for('user_dashboard'))
 
-    # ดึงข้อมูลหลักสูตร
+    # ดึงข้อมูลหลักสูตร (เหมือนเดิม)
     cursor.execute("SELECT id, title FROM courses WHERE id = %s", (lesson['course_id'],))
     course_of_lesson = cursor.fetchone()
     if not course_of_lesson:
         flash('ไม่พบหลักสูตรที่เกี่ยวข้องกับบทเรียนนี้', 'danger')
         cursor.close()
-        return redirect(url_for('course'))
+        return redirect(url_for('user_dashboard'))
 
-    # --- VVVVVV ตรวจสอบสิทธิ์การเข้าถึง VVVVVV ---
+    # ตรวจสอบสิทธิ์การเข้าถึง (เหมือนเดิม)
     if current_user.role not in ['admin', 'instructor']:
-        # ถ้าเป็น user ทั่วไป ให้ตรวจสอบการลงทะเบียน
-        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (current_user.id, course_of_lesson['id']))
+        cursor.execute("SELECT * FROM registered_courses WHERE user_id = %s AND course_id = %s", (user_id, course_of_lesson['id']))
         if not cursor.fetchone():
-            flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้ กรุณาลงทะเบียนก่อน', 'warning')
+            flash('คุณยังไม่ได้ลงทะเบียนหลักสูตรนี้', 'warning')
             cursor.close()
             return redirect(url_for('course_detail', course_id=course_of_lesson['id']))
-    # --- ^^^^^^ สิ้นสุดการตรวจสอบ ^^^^^^ ---
 
-    # ดึงเนื้อหา (วิดีโอ) ที่ผูกกับบทเรียนนี้
+    # --- VVVVVV แก้ไขการดึงเนื้อหา VVVVVV ---
+    # เราจะดึงเนื้อหามาทั้งหมดก่อน แล้วค่อยวนลูปเพื่อเช็คสถานะ
     cursor.execute("""
-        SELECT video_id, title, youtube_link, description, time_duration, video_image, quiz_id
+        SELECT video_id, title, youtube_link, video_file, description, time_duration, video_image, quiz_id
         FROM quiz_video
         WHERE lesson_id = %s AND quiz_id IS NULL
         ORDER BY video_id ASC
     """, (lesson_id,))
-    lesson_contents = cursor.fetchall()
+    contents_raw = cursor.fetchall()
+
+    # สร้าง List ใหม่เพื่อเก็บเนื้อหาพร้อมสถานะ "ดูจบแล้ว"
+    lesson_contents_with_status = []
+    for content in contents_raw:
+        # ตรวจสอบว่าผู้ใช้คนนี้เคยดูวิดีโอนี้จบแล้วหรือยัง
+        cursor.execute(
+            "SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s",
+            (user_id, content['video_id'])
+        )
+        is_completed = True if cursor.fetchone() else False
+        
+        # เพิ่มข้อมูลสถานะเข้าไปใน Dictionary ของ content
+        content_dict = dict(content) # แปลง tuple เป็น dict
+        content_dict['is_completed'] = is_completed
+        lesson_contents_with_status.append(content_dict)
+    
+    # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
 
     cursor.close()
+    
+    # ส่ง list ใหม่ที่มีสถานะไปด้วย
     return render_template('course/user_view_lesson.html',
                            lesson=lesson,
                            course=course_of_lesson,
-                           lesson_contents=lesson_contents)
+                           lesson_contents=lesson_contents_with_status) # <-- ใช้ตัวแปรใหม่
 
 @app.route('/course/join/<int:course_id>', methods=['POST'])
 @login_required # ต้องล็อกอินก่อน
@@ -862,23 +881,42 @@ def mark_video_as_watched_auto():
         print(f"Database error in mark_video_as_watched_auto: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/mark_video_completed/<int:video_id>', methods=['POST'])
+@app.route('/video/mark_complete/<int:video_id>', methods=['POST']) # ✅ แก้ไข URL ให้ตรงกับ JavaScript
 @login_required
 def mark_video_completed(video_id):
+    # ตรวจสอบว่าผู้ใช้ล็อกอินอยู่หรือไม่ (เพื่อความปลอดภัย)
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'User not logged in'}), 401
+
     try:
-        user_id = current_user.id
         cursor = mysql.connection.cursor()
-        cursor.execute("SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s", (user_id, video_id))
-        if cursor.fetchone():
-            return jsonify({'status': 'success', 'message': 'Already marked.'})
+        user_id = current_user.id
         
-        cursor.execute("INSERT INTO user_video_progress (user_id, video_id) VALUES (%s, %s)", (user_id, video_id))
-        mysql.connection.commit()
+        # 1. ตรวจสอบก่อนว่าเคยบันทึกไปแล้วหรือยัง
+        cursor.execute(
+            "SELECT id FROM user_video_progress WHERE user_id = %s AND video_id = %s",
+            (user_id, video_id)
+        )
+        already_completed = cursor.fetchone()
+
+        # 2. ถ้ายังไม่เคยบันทึก ให้เพิ่มข้อมูลใหม่ (เพิ่ม completed_at เพื่อความสมบูรณ์)
+        if not already_completed:
+            cursor.execute(
+                "INSERT INTO user_video_progress (user_id, video_id, completed_at) VALUES (%s, %s, %s)",
+                (user_id, video_id, datetime.now())
+            )
+            mysql.connection.commit() # ยืนยันการบันทึกข้อมูลลงฐานข้อมูล
+            
         cursor.close()
-        return jsonify({'status': 'success', 'message': 'Progress saved.'})
+        # ✅ แก้ไข JSON response ให้มี key ชื่อ 'success'
+        return jsonify({'success': True, 'message': 'Progress saved successfully'})
+
     except Exception as e:
+        # หากเกิดข้อผิดพลาด ให้ยกเลิกการเปลี่ยนแปลงและแจ้งกลับ
         mysql.connection.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        print(f"Error in mark_video_completed: {str(e)}") # แสดง error ใน terminal ของเซิร์ฟเวอร์
+        # ✅ แก้ไข JSON response ให้มี key ชื่อ 'success'
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/quiz/start/<int:quiz_id>', methods=['GET'])
 @login_required
