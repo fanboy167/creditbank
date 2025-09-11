@@ -28,7 +28,7 @@ UPLOAD_FOLDER_PROFILE_IMAGES = 'static/profile_images'
 UPLOAD_FOLDER_QUESTION_IMAGES = 'static/question_images'
 UPLOAD_FOLDER_VIDEO_IMAGES = 'static/video_images'
 
-ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'jfif'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv'}
 
 def allowed_file(filename, allowed_exts):
