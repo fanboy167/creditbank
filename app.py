@@ -1307,16 +1307,25 @@ def register():
             confirm_password = request.form.get('confirm_password')
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            cursor.execute('SELECT * FROM user WHERE email = %s', (email,))
-            user = cursor.fetchone()
 
-            # --- VVVVVV เพิ่มเงื่อนไขการตรวจสอบเลขบัตรประชาชน VVVVVV ---
-            if not is_valid_thai_id(id_card):
+            # ✅ ตรวจสอบว่า email หรือ id_card มีอยู่ในตารางไหนแล้วบ้าง
+            cursor.execute("""
+                SELECT email FROM user WHERE email = %s
+                UNION
+                SELECT email FROM admin WHERE email = %s
+                UNION
+                SELECT email FROM instructor WHERE email = %s
+            """, (email, email, email))
+            existing_email = cursor.fetchone()
+
+            # ✅ ตรวจสอบเฉพาะในตาราง user สำหรับ id_card (เพราะอีกสองตารางไม่มี)
+            cursor.execute("SELECT id_card FROM user WHERE id_card = %s", (id_card,))
+            existing_idcard = cursor.fetchone()
+
+            if existing_email or existing_idcard:
+                flash('ข้อมูลนี้มีอยู่ในระบบแล้ว!', 'error')
+            elif not is_valid_thai_id(id_card):
                 flash('เลขบัตรประชาชนไม่ถูกต้อง!', 'error')
-            # --- ^^^^^^ สิ้นสุดการแก้ไข ^^^^^^ ---
-            
-            elif user:
-                flash('บัญชีนี้มีผู้ใช้งานแล้ว!', 'error')
             elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
                 flash('ที่อยู่อีเมลไม่ถูกต้อง!', 'error')
             elif not re.match(r'[A-Za-z0-9]+', username):
@@ -1337,11 +1346,10 @@ def register():
                 hashed_password = generate_password_hash(password)
                 created_at = datetime.now()
 
-                cursor.execute(
-                    'INSERT INTO user (first_name, last_name, email, username, id_card, gender, password, role, created_at) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (first_name, last_name, email, username, id_card, gender.lower(), hashed_password, 'user', created_at)
-                )
+                cursor.execute("""
+                    INSERT INTO user (first_name, last_name, email, username, id_card, gender, password, role, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (first_name, last_name, email, username, id_card, gender.lower(), hashed_password, 'user', created_at))
                 mysql.connection.commit()
                 
                 flash('สมัครสมาชิกสำเร็จแล้ว! กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ', 'success')
@@ -1349,8 +1357,8 @@ def register():
         else:
             flash('กรุณากรอกแบบฟอร์มให้ครบถ้วน!', 'error')
     
-    # ตรวจสอบให้แน่ใจว่า path ของ template ถูกต้อง
     return render_template('main/register.html')
+
 
 
 
